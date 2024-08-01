@@ -4,9 +4,6 @@ library(tidyverse)
 # OD <- read_tsv("od600_strain_test.tsv")
 # Timepoints <- read_tsv("od600_strain_test_timepoints.tsv")
 
-
-
-
 read_single_experiment <- function(od600_file, timepoints_file, syncoms_file = NULL,
                                    mpn_file = NULL, type = "syncom",
                                    batch_name =  basename(dirname(od600_file))){
@@ -17,11 +14,17 @@ read_single_experiment <- function(od600_file, timepoints_file, syncoms_file = N
   # mpn_file <- "/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/NS1/mpn.tsv"
   # type <- "syncom"
   # batch_name <- "NS1"
+  
+  
+  # od600_file = "/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/NS1/od600.tsv"
+  # timepoints_file = "/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/NS1/timepoints.tsv"
+  # type <- "strain"
+  # batch_name <- "SS_NS1"
 
   if(type == "syncom"){
     id_cols <- c("Community", "temp")
   }else if(type == "strain"){
-    id_cols <- c("Strain", "temp")
+    id_cols <- c("strain", "temp")
   }
   
   
@@ -88,22 +91,118 @@ Syncoms
   
 
 
+Strains <- bind_rows(
+  read_single_experiment(od600_file = "/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/SHP1/od600.tsv",
+                         timepoints_file = "/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/SHP1/timepoints.tsv",
+                         mpn_file = NULL,
+                         syncoms_file = NULL,
+                         type = "strain",
+                         batch_name = "SS_SHP1"),
+  read_single_experiment(od600_file = "/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/NS1/od600.tsv",
+                         timepoints_file = "/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/NS1/timepoints.tsv",
+                         mpn_file = NULL,
+                         syncoms_file = NULL,
+                         type = "strain",
+                         batch_name = "SS_NS1"),
+  read_single_experiment(od600_file = "/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/ML1/od600.tsv",
+                         timepoints_file = "/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/ML1/timepoints.tsv",
+                         mpn_file = "/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/ML1/mpn.tsv",
+                         syncoms_file = "/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/ML1/syncoms.tsv",
+                         type = "strain",
+                         batch_name = "SS_ML1")
+)
+Strains
 
 
 
-
-
-#' Remove t_2 which seems to have overestimated OD600
-p1 <- Dat %>%
-  # filter(timepoint != "t_2") %>% 
-  ggplot(aes(x = total_time_h, y = OD600, group = interaction(Community, temp, sep = "_"))) +
+#' Plot syncoms OD600
+p1 <- Syncoms %>%
+  mutate(Community = factor(Community, levels = paste0("R", 1:12))) %>%
+  mutate(temp = as.character(temp)) %>%
+  ggplot(aes(x = total_time_h, y = OD600, group = interaction(Community, temp, batch, sep = "_"))) +
   facet_wrap(~ Community) +
   geom_vline(xintercept = c(24, 48)) +
-  geom_line(aes(col = as.character(temp))) +
-  scale_color_manual(values = c("blue", "red")) +
+  geom_line(aes(col = temp)) +
+  scale_color_manual(values = c("#feb24c", "#f03b20")) +
   theme_classic()
 p1
-ggsave("od_plots.svg", width = 6, height = 4)
+ggsave("syncom_od_plots.svg", width = 6, height = 6)
+
+#' Plot syncoms MPN
+p1 <- Syncoms %>%
+  filter(!is.na(MPN)) %>%
+  mutate(Community = factor(Community, levels = paste0("R", 1:12))) %>%
+  mutate(temp = as.character(temp)) %>%
+  ggplot(aes(x = total_time_h, y = MPN, group = interaction(Community, temp, batch, sep = "_"))) +
+  facet_wrap(~ Community) +
+  geom_vline(xintercept = c(24, 48)) +
+  geom_line(aes(col = temp)) +
+  scale_y_log10() +
+  # scale_y_continuous(
+  #                    trans = scales::trans_new(name = "minus_log10",
+  #                                              transform = function(x){ -log10(x)},
+  #                                              inverse = function(x){ 10^(-x)})) +
+  scale_color_manual(values = c("#feb24c", "#f03b20")) +
+  theme_classic()
+p1
+
+#' Compare OD600 and MPN
+Syncoms %>%
+  filter(!is.na(MPN)) %>%
+  mutate(Community = factor(Community, levels = paste0("R", 1:12))) %>%
+  ggplot(aes(x = OD600, y = MPN)) +
+  facet_wrap(~ Community, scales = "free") +
+  geom_point() +
+  geom_smooth(method = "lm", formula = y ~ x) +
+  scale_y_log10() +
+  # scale_y_continuous(trans = scales::trans_new(name = "minus_log10",
+  #                                              transform = function(x){ -log10(x)},
+  #                                              inverse = function(x){ 10^(-x)})) +
+  theme_classic()
+
+#' Compare expected and observed
+#' First we get the composition of each community and create a matrix
+Composition <- read_tsv("/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/NS1/syncoms.tsv") %>%
+  full_join(read_tsv("/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/NS2/syncoms.tsv"),
+            by = "strain") %>%
+  mutate(across(R1:R12, ~replace_na(.x,0)))
+
+C.mat <- Composition %>% select(-strain) %>% as.matrix() 
+row.names(C.mat) <- Composition$strain
+C.mat
+
+#' Then we calculate the strain mean behaviors and reorder them according to
+#' C.mat
+Strain_means <- Strains %>%
+  filter(time_since_dil_h <= 24) %>%
+  group_by(strain, temp, total_time_h) %>%
+  summarise(OD600 = mean(OD600),
+            .groups = "drop") %>%
+  filter(strain %in% row.names(C.mat)) %>%
+  arrange(match(strain,row.names(C.mat)))
+Strain_means
+
+#' For each community on each temperature and timepoint we calculate the 
+#' expected sum, mean, and median OD from
+#' the community members
+
+Expected_od <- Composition %>%
+  pivot_longer(-strain, names_to = "Community", values_to = "membership") %>%
+  split(.$Community) %>%
+  map_dfr(function(d, Strain_means){
+    members <- d %>%
+      filter(membership == 1) %>%
+      select(strain) %>% unlist()
+    
+    Strain_means %>%
+      filter(strain %in% members) %>%
+      group_by(total_time_h, temp) %>%
+      summarize(OD600_mean = mean(OD600),
+                OD600_median = median(OD600),
+                OD600_sum = sum(OD600),
+                .groups = 'drop') %>%
+      mutate(Community = unique(d$Community))
+    }, Strain_means = Strain_means )
 
 
 #' It seems like at dillution we are reaching OD
