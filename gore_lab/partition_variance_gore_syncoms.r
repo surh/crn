@@ -58,7 +58,7 @@ mc <- lmer(OD ~ 0 + Nutrient_f + (0 + Nutrient_f | Community),
            data = Dat)
 summary(mc)
 
-#' Compare all modelos with AIC, BIC
+#' Compare all models with AIC, BIC
 AIC(mp0, mp1, mp2, mc)
 BIC(mp0, mp1, mp2, mc)
 
