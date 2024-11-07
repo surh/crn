@@ -129,8 +129,8 @@ summary(Res)
 Crns <- combn(1:8, 4) %>%
     as_tibble() %>%
     as.list() %>%
-    map(function(red_strains) {
-        # red_strains <- c(1, 3, 5, 7)
+    map_dfr(function(red_strains) {
+        red_strains <- c(1, 3, 5, 7)
         blue_strains <- setdiff(1:8, red_strains)
 
 
@@ -139,13 +139,12 @@ Crns <- combn(1:8, 4) %>%
             n = length(blue_strains),
             r = length(blue_strains), v = blue_strains
         )
-        
-        blue_permutations %>%
+
+        Res.per.red <- blue_permutations %>%
             t() %>%
             as_tibble() %>%
             as.list() %>%
             map_dfr(function(blue_perm) {
-                
                 # blue_perm <- c(4, 6, 2, 8)
                 # blue_perm
                 # red_strains
@@ -171,65 +170,67 @@ Crns <- combn(1:8, 4) %>%
                     red_strains = red_strains
                     )
 
-                coms <- apply(coms, 2, paste0, collapse = "")
-                # coms
-                Coms <- c(Coms, coms)
-            }
-            # Coms
+                    coms <- apply(coms, 2, paste0, collapse = "")
+                    # coms
+                    Coms <- c(Coms, coms)
+                }
+                # Coms
 
-            # Select data
-            dat <- Dat %>%
-                filter(community %in% Coms)
-        
-         # Model
-    # We are going to try 3 basic polynomial models with degrees 0-2
-    mp0 <- lmer(absorbance ~ 1 + (1 | community), data = dat)
-    # summary(mp0)
+                # Select data
+                dat <- Dat %>%
+                    filter(community %in% Coms)
 
-    mp1 <- lmer(absorbance ~ 1 + dilution_factor + (1 + dilution_factor | community), data = dat)
-    # summary(mp1) dilution_factor | community), data = dat, control = lmerControl(check.nobs.vs.nRE = "ignore"))
-    # summary(mp1)
+                # Model
+                # We are going to try 3 basic polynomial models with degrees 0-2
+                mp0 <- lmer(absorbance ~ 1 + (1 | community), data = dat)
+                # summary(mp0)
 
-    mp2 <- lmer(absorbance ~ 1 + dilution_factor + dilution_factor_sq + (1 + dilution_factor + dilution_factor_sq | community), data = dat)
-    # summary(mp2)
-    
-    # We also fit a character state model. DON't FIT, can't extract
-    # params yet
-    # mc <- lmer(absorbance ~ 0 + dilution_factor_f + (0 + dilution_factor_f | community),
-    #        data = dat)
-    # summary(mc)
+                mp1 <- lmer(absorbance ~ 1 + dilution_factor + (1 + dilution_factor | community), data = dat)
+                # summary(mp1) dilution_factor | community), data = dat, control = lmerControl(check.nobs.vs.nRE = "ignore"))
+                # summary(mp1)
 
-    # Select the best model
-    m_ii <- which.min(AIC(mp0, mp1, mp2)$AIC)
-    m_selected <- list(mp0, mp1, mp2)[[m_ii]]
-    # BIC(mp0, mp1, mp2, mc)
+                mp2 <- lmer(absorbance ~ 1 + dilution_factor + dilution_factor_sq + (1 + dilution_factor + dilution_factor_sq | community), data = dat)
+                # summary(mp2)
 
+                # We also fit a character state model. DON't FIT, can't extract
+                # params yet
+                # mc <- lmer(absorbance ~ 0 + dilution_factor_f + (0 + dilution_factor_f | community),
+                #        data = dat)
+                # summary(mc)
 
-    res <- partition_variance_polynomial(
-        mp = m_selected,
-        pheno_name = "absorbance",
-        com_name = "community"
-    )
+                # Select the best model
+                m_ii <- which.min(AIC(mp0, mp1, mp2)$AIC)
+                m_selected <- list(mp0, mp1, mp2)[[m_ii]]
+                # BIC(mp0, mp1, mp2, mc)
 
 
-    Res <- Res %>%
-        bind_rows( tibble(
-        expid =  paste0(c(red_strains, blue_perm), collapse = ""),
-        m_type = c("mp0", "mp1", "mp2")[m_ii],
-        V_Phen = res$V_Phen,
-        V_Tot = res$V_Tot,
-        V_Plas = res$V_Plas,
-        V_Gen = res$V_Gen,
-        V_Res = res$V_Res
-    ))
+                res <- partition_variance_polynomial(
+                    mp = m_selected,
+                    pheno_name = "absorbance",
+                    com_name = "community"
+                )
 
-    rm(mp0, mp1, mp2, m_selected)
 
-    Res
+                Res <- tibble(
+                    expid = paste0(c(red_strains, blue_perm), collapse = ""),
+                    m_type = c("mp0", "mp1", "mp2")[m_ii],
+                    V_Phen = res$V_Phen,
+                    V_Tot = res$V_Tot,
+                    V_Plas = res$V_Plas,
+                    V_Gen = res$V_Gen,
+                    V_Res = res$V_Res
+                )
+
+                rm(mp0, mp1, mp2, m_selected)
+                Res
+            })
+
+        Res.per.red
     })
-    }
 
-
+Crns
+Crns %>%
+    write_tsv(file.path(args$outdir, "f2like_crns.tsv"))
 
 
 
