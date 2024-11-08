@@ -29,7 +29,7 @@ Dat <- Dat %>%
 n_coms <- 16
 set.seed(1503)
 Res <- NULL
-for (i in 1:100){
+for (i in 1:1680){
     cat(i, "\n")
     coms <- unique(Dat$community)
     dat <- Dat %>%
@@ -80,7 +80,7 @@ for (i in 1:100){
 }
 Res
 Res %>%
-    write_tsv(file.path(args$outdir, "random_draws_crn.tsv"))
+    write_tsv(file.path(args$outdir, "random_draws_crns.tsv"))
 
 
 
@@ -130,7 +130,7 @@ Crns <- combn(1:8, 4) %>%
     as_tibble() %>%
     as.list() %>%
     map_dfr(function(red_strains) {
-        red_strains <- c(1, 3, 5, 7)
+        # red_strains <- c(1, 3, 5, 7)
         blue_strains <- setdiff(1:8, red_strains)
 
 
