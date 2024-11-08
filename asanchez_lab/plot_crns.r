@@ -51,7 +51,7 @@ Crn.f2 <- file.path(args$outdir, "f2like_crns.tsv") %>%
     ))
 
 
-Crn.rand %>%
+p1 <- Crn.rand %>%
     mutate(strategy = "random") %>%
     bind_rows(
         Crn.f2 %>%
@@ -59,14 +59,16 @@ Crn.rand %>%
     ) %>%
     ggplot(aes(x = V_Tot)) +
     facet_wrap(~strategy, scales = "free_y") +
-    # geom_histogram(bins = 10) +
-    geom_density(n = 256) +
-    geom_vline(xintercept = Crn.full$V_Tot) +
+    geom_histogram(bins = 20) +
+    # geom_density(n = 256) +
+    geom_vline(xintercept = Crn.full$V_Tot, col = "red", size = 2) +
     theme_classic()
+p1
+ggsave(file.path(args$outdir, "V_Tot_crn.png"), p1, width = 6, height = 4)
 
 
 
-Crn.rand %>%
+p1 <- Crn.rand %>%
     mutate(strategy = "random") %>%
     bind_rows(
         Crn.f2 %>%
@@ -74,38 +76,61 @@ Crn.rand %>%
     ) %>%
     ggplot(aes(x = V_Phen)) +
     facet_wrap(~strategy, scales = "free_y") +
-    # geom_histogram(bins = 10) +
-    geom_density(n = 256) +
-    geom_vline(xintercept = Crn.full$V_Phen) +
+    geom_histogram(bins = 20) +
+    # geom_density(n = 256) +
+    geom_vline(xintercept = Crn.full$V_Phen, col = "red", size = 2) +
     theme_classic()
+p1
+ggsave(file.path(args$outdir, "V_Phen_crn.png"), p1, width = 6, height = 4)
 
 
-    Crn.rand %>%
-        mutate(strategy = "random") %>%
-        bind_rows(
-            Crn.f2 %>%
-                mutate(strategy = "f2like")
-        ) %>%
-        ggplot(aes(x = V_Gen)) +
-        facet_wrap(~strategy, scales = "free_y") +
-        geom_histogram(bins = 10) +
-        # geom_density(n = 256) +
-        geom_vline(xintercept = Crn.full$V_Gen) +
-        theme_classic()
+
+p1 <- Crn.rand %>%
+    mutate(strategy = "random") %>%
+    bind_rows(
+        Crn.f2 %>%
+            mutate(strategy = "f2like")
+    ) %>%
+    ggplot(aes(x = V_Gen)) +
+    facet_wrap(~strategy, scales = "free_y") +
+    geom_histogram(bins = 10) +
+    # geom_density(n = 256) +
+    geom_vline(xintercept = Crn.full$V_Gen, col = "red", size = 2) +
+    theme_classic()
+p1
+ggsave(file.path(args$outdir, "V_Gen_crn.png"), p1, width = 6, height = 4)
+    
     
 
+p1 <- Crn.rand %>%
+    mutate(strategy = "random") %>%
+    bind_rows(
+        Crn.f2 %>%
+            mutate(strategy = "f2like")
+    ) %>%
+    ggplot(aes(x = V_Res)) +
+    facet_wrap(~strategy, scales = "free_y") +
+    geom_histogram(bins = 10) +
+    # geom_density(n = 256) +
+    geom_vline(xintercept = Crn.full$V_Res, col = "red", size = 2) +
+    theme_classic()
+p1
+ggsave(file.path(args$outdir, "V_Res_crn.png"), p1, width = 6, height = 4)
 
 
-    Crn.rand %>%
-        mutate(strategy = "random") %>%
-        bind_rows(
-            Crn.f2 %>%
-                mutate(strategy = "f2like")
-        ) %>%
-        ggplot(aes(x = V_Res)) +
-        facet_wrap(~strategy, scales = "free_y") +
-        geom_histogram(bins = 10) +
-        # geom_density(n = 256) +
-        geom_vline(xintercept = Crn.full$V_Res) +
-        theme_classic()
-    
+p1 <- Crn.rand %>%
+    mutate(strategy = "random") %>%
+    bind_rows(
+        Crn.f2 %>%
+            mutate(strategy = "f2like")
+    ) %>%
+    ggplot(aes(x = V_Plas)) +
+    facet_wrap(~strategy, scales = "free_y") +
+    geom_histogram(bins = 10) +
+    # geom_density(n = 256) +
+    geom_vline(xintercept = Crn.full$V_Plas, col = "red", size = 2) +
+    theme_classic()
+p1
+ggsave(file.path(args$outdir, "V_Plas_crn.png"), p1, width = 6, height = 4)
+
+
