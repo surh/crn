@@ -4,8 +4,6 @@ using Turing
 using DifferentialEquations
 using StatsPlots
 using Random
-using MCM
-
 
 Random.seed!(544);
 
