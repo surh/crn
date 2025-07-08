@@ -4,7 +4,7 @@ using Turing
 using DifferentialEquations
 using StatsPlots
 using Random
-
+using MCM
 
 
 Random.seed!(544);
@@ -27,7 +27,7 @@ end
     σ ~ InverseGamma(2, 2) #Cauchy(0, 2)# 
 
     K ~ Uniform(0, 2)#LogNormal(log(150), 0.1)
-    r ~ Uniform(0, 2) #LogNormal(log(1), 0.1)
+    r ~ Uniform(0, 3) #LogNormal(log(1), 0.1)
 
 
     p = [r, K]
@@ -52,6 +52,7 @@ end
 
 Dat = CSV.read("/Users/sur/lab/exp/2025/today3/pilot_strain_growth_curves_filtered.tsv", 
     DataFrame, delim='\t')
+outdir = "/Users/sur/lab/exp/2025/today3/single_strain_logistic/"
 
 Strains = unique(Dat.strain)
 
@@ -83,6 +84,15 @@ end
 n_samples = 1000;
 model = fit_logistic_multidata(obsdata);
 chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4)
+# describe(chain)
+# maximum_a_posteriori(model)
+# hpd(chain; alpha=0.2)
 
-plot(chain)
+# plot(chain)
 
+Post  = DataFrame(chain)
+# combine(Post, [:r, :K] .=> [mean, median], renamecols = false)
+# combine(Post, [:r] .=> (x -> [quantile(x, (0.1,0.2,0.8,0.9))]) => [:q10, :q20, :q80, :q90], renamecols = false)
+# res = summarize(chain)
+outfile = joinpath(outdir, "$(strain)_logistic_fit.tsv")
+CSV.write(outfile, Post; delim='\t')
