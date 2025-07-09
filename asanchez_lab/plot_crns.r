@@ -134,3 +134,18 @@ p1
 ggsave(file.path(args$outdir, "V_Plas_crn.png"), p1, width = 6, height = 4)
 
 
+
+Crn.f2 %>%
+    mutate(V_com_error = V_Phen - Crn.full$V_Phen) %>%
+    ggplot()
+
+
+
+
+
+
+
+
+
+
+
