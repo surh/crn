@@ -50,7 +50,7 @@ end
 
 Dat = CSV.read("/Users/sur/lab/exp/2025/today3/pilot_strain_growth_curves_filtered.tsv", 
     DataFrame, delim='\t')
-outdir = "/Users/sur/lab/exp/2025/today3/single_strain_logistic/"
+outdir = "/Users/sur/lab/exp/2025/today3/single_strain_bytemp_logistic/"
 
 Strains = unique(Dat.strain)
 # strain = Strains[1]
