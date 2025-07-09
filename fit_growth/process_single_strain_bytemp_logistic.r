@@ -1,10 +1,13 @@
 library(tidyverse)
 library(coda)
 
-box::use(./fit_growth/functions)
+old_opts = options(box.path = "/Users/sur/lab/src/crn/")
+box::use(fit_growth/functions)
 
 args <- list()
 args$indir <- "/Users/sur/lab/exp/2025/today3/single_strain_bytemp_logistic/"
+args$outdir <- "/Users/sur/lab/exp/2025/today3/"
+
 infiles <- list.files(args$indir, pattern = "_logistic_fit.tsv", full.names = TRUE)
 
 Res <- tibble()
@@ -28,7 +31,6 @@ for(f in infiles){
 }
 Res
 
-
 p1 <- Res %>%
     filter(parameter == "r") %>%
     ggplot(aes(x = temp, y = mean)) +
@@ -40,6 +42,10 @@ p1 <- Res %>%
     labs(y = "Growth rate (1/h)", x = "Temperature (ºC)") +
     theme_classic()
 p1
+outfile <- file.path(args$outdir, "single_strain_bytemp_logistic_r.png")
+ggsave(outfile, p1, width = 6, height = 4)
+outfile <- file.path(args$outdir, "single_strain_bytemp_logistic_r.svg")
+ggsave(outfile, p1, width = 6, height = 4)
 
 
 p1 <- Res %>%
@@ -53,3 +59,7 @@ p1 <- Res %>%
     labs(y = "Growth rate (1/h)", x = "Temperature (ºC)") +
     theme_classic()
 p1
+outfile <- file.path(args$outdir, "single_strain_bytemp_logistic_K.png")
+ggsave(outfile, p1, width = 6, height = 4)
+outfile <- file.path(args$outdir, "single_strain_bytemp_logistic_K.svg")
+ggsave(outfile, p1, width = 6, height = 4)
