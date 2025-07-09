@@ -43,9 +43,9 @@ p1 <- Res %>%
     theme_classic()
 p1
 outfile <- file.path(args$outdir, "single_strain_bytemp_logistic_r.png")
-ggsave(outfile, p1, width = 6, height = 4)
+ggsave(outfile, p1, width = 7, height = 4)
 outfile <- file.path(args$outdir, "single_strain_bytemp_logistic_r.svg")
-ggsave(outfile, p1, width = 6, height = 4)
+ggsave(outfile, p1, width = 7, height = 4)
 
 
 p1 <- Res %>%
