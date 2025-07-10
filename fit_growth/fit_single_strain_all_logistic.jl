@@ -23,18 +23,28 @@ end
 @model function fit_logistic_multidata_all(obsdata)
     # Prior distributions.
     σ ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma_r0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma_rt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
 
+    b_rt = Dict()
+    for temp in obsdata[3]
+       b_rt[temp] ~ Normal(0, sigma_rt)
+    end
 
     K ~ Uniform(0, 2)#LogNormal(log(150), 0.1)
-    r ~ Uniform(0, 3) #LogNormal(log(1), 0.1)
+    r_0 ~ LogNormal(log(1), 1)
 
 
-    p = [r, K]
+    # p = [r, K]
 
     # i is for number of experiment
     for i in eachindex(obsdata[1])
         x0i = [obsdata[1][i][1][1]] # initial condition for the i-th experiment
         tspan = extrema(obsdata[1][i][2])
+
+        r = r_0 + b_rt[obsdata[1][i][3]] # r is a function of temperature
+        p = [r, K] # parameters for the logistic growth model
+
         probh = ODEProblem(logistic_growth, x0i, tspan, p) #remake(prob; x0 = x0i, p = [r, K])
         predicted  = solve(probh, Tsit5(); saveat = obsdata[1][i][2])
     
@@ -70,8 +80,8 @@ for strain in Strains
     temps = unique(dat.temp)
     obsdata = Vector{Any}(undef, 3)
     obsdata[1] = Array{Tuple{Vector, Vector, Float64, String7}}(undef, 6)
-    obsdata[2] = length(batches)
-    obsdata[3] = length(temps)
+    obsdata[2] = batches
+    obsdata[3] = temps
 
     i = 1
     for temp in temps
@@ -98,4 +108,15 @@ for strain in Strains
     # res = summarize(chain)
     outfile = joinpath(outdir, "$(strain)_logistic_fit.tsv")
     CSV.write(outfile, Post; delim='\t')
+end
+
+
+
+
+
+
+
+for i in eachindex(obsdata[1])
+    b_
+    println(obsdata[1][i][3])
 end
