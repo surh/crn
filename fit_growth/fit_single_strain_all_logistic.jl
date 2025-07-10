@@ -32,7 +32,7 @@ end
     end
 
     K ~ Uniform(0, 2)#LogNormal(log(150), 0.1)
-    r_0 ~ LogNormal(log(1), 1)
+    r_0 ~ Uniform(0, 3)
 
 
     # p = [r, K]
@@ -95,9 +95,13 @@ for strain in Strains
     # Run model parameter infeference
     n_samples = 1000;
     model = fit_logistic_multidata_all(obsdata);
+    map_estimate = maximum_a_posteriori(model)
+    map_estimate.values
+    chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4; init_theta=(map_estimate.values.array,map_estimate.values.array,map_estimate.values.array, map_estimate.values.array), progress=true)
+
     chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4)
     describe(chain)
-    # maximum_a_posteriori(model)
+ 
     # hpd(chain; alpha=0.2)
 
     # plot(chain)
