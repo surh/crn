@@ -69,7 +69,7 @@ for strain in Strains
     batches = unique(dat.batch)
     temps = unique(dat.temp)
     obsdata = Vector{Any}(undef, 3)
-    obsdata[1] = Array{Tuple{Vector, Vector}}(undef, 6)
+    obsdata[1] = Array{Tuple{Vector, Vector, Float64, String7}}(undef, 6)
     obsdata[2] = length(batches)
     obsdata[3] = length(temps)
 
@@ -77,7 +77,7 @@ for strain in Strains
     for temp in temps
         for batch in batches
             ii = (dat.batch .== batch) .& (dat.temp .== temp)
-            obsdata[1][i] = (dat.OD600[ii], dat.total_time_h[ii])
+            obsdata[1][i] = (dat.OD600[ii], dat.total_time_h[ii], temp, batch)
             i += 1
         end
     end
