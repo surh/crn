@@ -124,7 +124,7 @@ for strain in Strains
             end
             
             obsdata[1][i] = (Dat.OD600[ii], Dat.total_time_h[ii], temp, batch, strain)
-            i += 1
+            global i += 1
         end
     end
 
