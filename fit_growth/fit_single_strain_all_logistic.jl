@@ -70,7 +70,6 @@ end
     return nothing
 end
 
-
 Dat = CSV.read("/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/pilot_strain_growth_curves_filtered.tsv", 
     DataFrame, delim='\t')
 outdir = "/Users/sur/lab/exp/2025/today3/single_strain_all_logistic/"
