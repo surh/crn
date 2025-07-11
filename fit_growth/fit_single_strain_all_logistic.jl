@@ -25,15 +25,20 @@ end
     σ ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_r0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_rt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma_bt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
 
     b_rt = Dict()
     for temp in obsdata[3]
        b_rt[temp] ~ Normal(0, sigma_rt)
     end
 
+    b_bt = Dict()
+    for batch in obsdata[2]
+       b_bt[batch] ~ Normal(0, sigma_bt)
+    end
+
     K ~ Uniform(0, 2)#LogNormal(log(150), 0.1)
     r_0 ~ Uniform(0, 3)
-
 
     # p = [r, K]
 
@@ -42,7 +47,7 @@ end
         x0i = [obsdata[1][i][1][1]] # initial condition for the i-th experiment
         tspan = extrema(obsdata[1][i][2])
 
-        r = r_0 + b_rt[obsdata[1][i][3]] # r is a function of temperature
+        r = r_0 + b_rt[obsdata[1][i][3]] + b_bt[obsdata[1][i][4]]# r is a function of temperature
         p = [r, K] # parameters for the logistic growth model
 
         probh = ODEProblem(logistic_growth, x0i, tspan, p) #remake(prob; x0 = x0i, p = [r, K])
@@ -52,7 +57,6 @@ end
         for k in eachindex(predicted)
             obsdata[1][i][1][k] ~  Normal(predicted[k][1], σ^2)
         end 
-
     end
 
     return nothing
@@ -61,10 +65,10 @@ end
 
 Dat = CSV.read("/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/pilot_strain_growth_curves_filtered.tsv", 
     DataFrame, delim='\t')
-outdir = "/Users/sur/lab/exp/2025/today3/single_strain_all_logisitc/"
+outdir = "/Users/sur/lab/exp/2025/today3/single_strain_all_logistic/"
 
 Strains = unique(Dat.strain)
-strain = Strains[1]
+# strain = Strains[2]
 
 for strain in Strains
     # Filter data for the specific strain
@@ -79,7 +83,7 @@ for strain in Strains
     batches = unique(dat.batch)
     temps = unique(dat.temp)
     obsdata = Vector{Any}(undef, 3)
-    obsdata[1] = Array{Tuple{Vector, Vector, Float64, String7}}(undef, 6)
+    obsdata[1] = Array{Tuple{Vector, Vector, Float64, String7}}(undef, length(batches) * length(temps))
     obsdata[2] = batches
     obsdata[3] = temps
 
@@ -93,34 +97,19 @@ for strain in Strains
     end
 
     # Run model parameter infeference
-    n_samples = 1000;
+    n_samples = 1500;
     model = fit_logistic_multidata_all(obsdata);
-    map_estimate = maximum_a_posteriori(model)
-    map_estimate.values
-    chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4; init_theta=(map_estimate.values.array,map_estimate.values.array,map_estimate.values.array, map_estimate.values.array), progress=true)
+    # map_estimate = maximum_a_posteriori(model)
+    # map_estimate.values
+    chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4; num_warmup=1500)
 
-    chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4)
-    describe(chain)
+    # describe(chain)
  
     # hpd(chain; alpha=0.2)
 
     # plot(chain)
 
     Post = DataFrame(chain)
-    # combine(Post, [:r, :K] .=> [mean, median], renamecols = false)
-    # combine(Post, [:r] .=> (x -> [quantile(x, (0.1,0.2,0.8,0.9))]) => [:q10, :q20, :q80, :q90], renamecols = false)
-    # res = summarize(chain)
-    outfile = joinpath(outdir, "$(strain)_logistic_fit.tsv")
+    outfile = joinpath(outdir, "$(strain)_all_logistic_fit.tsv")
     CSV.write(outfile, Post; delim='\t')
-end
-
-
-
-
-
-
-
-for i in eachindex(obsdata[1])
-    b_
-    println(obsdata[1][i][3])
 end
