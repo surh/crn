@@ -129,13 +129,9 @@ for strain in Strains
     end
 
 end
-
 obsdata
 
-
-
 # Run model parameter infeference
-
 n_samples = 10;
 n_warmup = 10;
 model = fit_logistic_all(obsdata);
@@ -144,11 +140,10 @@ model = fit_logistic_all(obsdata);
 chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4; num_warmup=n_warmup)
 
 describe(chain)
-
 # hpd(chain; alpha=0.2)
-
 # plot(chain)
 
+# Save posterior
 Post = DataFrame(chain)
 outfile = joinpath(outdir, "all_logistic_fit.tsv")
 CSV.write(outfile, Post; delim='\t')
