@@ -25,19 +25,26 @@ end
     σ ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_r0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_rt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    sigma_bt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma_rb ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma_k0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma_kt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma_kb ~ InverseGamma(2, 2) #Cauchy(0, 2)#
 
     b_rt = Dict()
+    b_kt = Dict()
     for temp in obsdata[3]
        b_rt[temp] ~ Normal(0, sigma_rt^2)
+       b_kt[temp] ~ Normal(0, sigma_kt^2)
     end
 
-    b_bt = Dict()
+    b_rb = Dict()
+    k_rb = Dict()
     for batch in obsdata[2]
-       b_bt[batch] ~ Normal(0, sigma_bt^2)
+       b_rb[batch] ~ Normal(0, sigma_rb^2)
+       k_rb[batch] ~ Normal(0, sigma_kb^2)
     end
 
-    K ~ Uniform(0, 2)#LogNormal(log(150), 0.1)
+    K_0 ~ Uniform(0, 2)#LogNormal(log(150), 0.1)
     r_0 ~ Uniform(0, 3)
 
     # p = [r, K]
@@ -47,7 +54,9 @@ end
         x0i = [obsdata[1][i][1][1]] # initial condition for the i-th experiment
         tspan = extrema(obsdata[1][i][2])
 
-        r = r_0 + b_rt[obsdata[1][i][3]] + b_bt[obsdata[1][i][4]]# r is a function of temperature
+        r = r_0 + b_rt[obsdata[1][i][3]] + b_rb[obsdata[1][i][4]]# r is a function of temperature
+        K = K_0 + k_rt[obsdata[1][i][3]] + k_rb[obsdata[1][i][4]]# r is a function of temperature
+
         p = [r, K] # parameters for the logistic growth model
 
         probh = ODEProblem(logistic_growth, x0i, tspan, p) #remake(prob; x0 = x0i, p = [r, K])
