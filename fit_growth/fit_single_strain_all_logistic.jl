@@ -104,8 +104,8 @@ for strain in Strains
     end
 
     # Run model parameter infeference
-    n_warmup = 20;
-    n_samples = 20;
+    n_warmup = 1000;
+    n_samples = 1500;
     model = fit_logistic_multidata_all(obsdata);
     # map_estimate = maximum_a_posteriori(model)
     # map_estimate.values
