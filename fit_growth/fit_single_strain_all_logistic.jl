@@ -26,7 +26,6 @@ end
     sigma_r0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_rt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_rb ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    sigma_k0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_kt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_kb ~ InverseGamma(2, 2) #Cauchy(0, 2)#
 
@@ -38,10 +37,10 @@ end
     end
 
     b_rb = Dict()
-    k_rb = Dict()
+    b_kb = Dict()
     for batch in obsdata[2]
        b_rb[batch] ~ Normal(0, sigma_rb^2)
-       k_rb[batch] ~ Normal(0, sigma_kb^2)
+       b_kb[batch] ~ Normal(0, sigma_kb^2)
     end
 
     K_0 ~ Uniform(0, 2)#LogNormal(log(150), 0.1)
@@ -55,7 +54,7 @@ end
         tspan = extrema(obsdata[1][i][2])
 
         r = r_0 + b_rt[obsdata[1][i][3]] + b_rb[obsdata[1][i][4]]# r is a function of temperature
-        K = K_0 + k_rt[obsdata[1][i][3]] + k_rb[obsdata[1][i][4]]# r is a function of temperature
+        K = K_0 + b_kt[obsdata[1][i][3]] + b_kb[obsdata[1][i][4]]# r is a function of temperature
 
         p = [r, K] # parameters for the logistic growth model
 
@@ -106,11 +105,12 @@ for strain in Strains
     end
 
     # Run model parameter infeference
-    n_samples = 1500;
+    n_warmup = 20;
+    n_samples = 20;
     model = fit_logistic_multidata_all(obsdata);
     # map_estimate = maximum_a_posteriori(model)
     # map_estimate.values
-    chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4; num_warmup=1500)
+    chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4; num_warmup=n_warmup)
 
     # describe(chain)
  
