@@ -106,7 +106,7 @@ temps = unique(Dat.temp)
 obsdata = Vector{Any}(undef, 4)
 obsdata[1] = Array{Tuple{Vector, Vector, Float64, String7, String7}}(undef, length(unique(string.(Dat.strain, "_", Dat.batch, "_", Dat.temp))))
 obsdata[2] = batches
-obsdata[3] = temps
+obsdata[3] = float(temps)
 obsdata[4] = Strains
  
 # Filter data for the specific strain
@@ -136,9 +136,9 @@ obsdata
 
 # Run model parameter infeference
 
-n_samples = 500;
-n_warmup = 500;
-model = fit_logistic_multidata_all(obsdata);
+n_samples = 10;
+n_warmup = 10;
+model = fit_logistic_all(obsdata);
 # map_estimate = maximum_a_posteriori(model)
 # map_estimate.values
 chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4; num_warmup=n_warmup)
