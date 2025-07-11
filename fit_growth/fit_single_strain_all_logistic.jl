@@ -29,12 +29,12 @@ end
 
     b_rt = Dict()
     for temp in obsdata[3]
-       b_rt[temp] ~ Normal(0, sigma_rt)
+       b_rt[temp] ~ Normal(0, sigma_rt^2)
     end
 
     b_bt = Dict()
     for batch in obsdata[2]
-       b_bt[batch] ~ Normal(0, sigma_bt)
+       b_bt[batch] ~ Normal(0, sigma_bt^2)
     end
 
     K ~ Uniform(0, 2)#LogNormal(log(150), 0.1)
