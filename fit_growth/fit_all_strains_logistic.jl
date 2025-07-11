@@ -132,14 +132,14 @@ end
 obsdata
 
 # Run model parameter infeference
-n_samples = 10;
-n_warmup = 10;
+n_samples = 500;
+n_warmup = 1000;
 model = fit_logistic_all(obsdata);
 # map_estimate = maximum_a_posteriori(model)
 # map_estimate.values
 chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4; num_warmup=n_warmup)
 
-describe(chain)
+# describe(chain)
 # hpd(chain; alpha=0.2)
 # plot(chain)
 
