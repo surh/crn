@@ -22,13 +22,18 @@ for(f in infiles){
     Dat <- Dat %>%
         mutate(r_28 = r_0 + `b_rt[28]`) %>%
         mutate(r_32 = r_0 + `b_rt[32]`) %>%
+        mutate(K_28 = K_0 + `b_kt[28]`) %>%
+        mutate(K_32 = K_0 + `b_kt[32]`) %>%
         mutate(delta_r = r_32 - r_28) %>%
-        select(iteration, chain, K, r_28, r_32, delta_r)
+        mutate(delta_K = K_32 - K_28) %>%
+        select(iteration, chain, r_28, r_32, delta_r, K_28, K_32, delta_K)
         
     res <- bind_rows(functions$calculate_stats(Dat = Dat, column = "r_28"),
         functions$calculate_stats(Dat = Dat, column = "r_32"),
         functions$calculate_stats(Dat = Dat, column = "delta_r"),
-        functions$calculate_stats(Dat = Dat, column = "K")) %>%
+        functions$calculate_stats(Dat = Dat, column = "K_28"),
+        functions$calculate_stats(Dat = Dat, column = "K_32"),
+        functions$calculate_stats(Dat = Dat, column = "delta_K")) %>%
         mutate(strain = strain) %>%
         select(strain, everything())
 
@@ -63,7 +68,8 @@ ggsave(outfile, p1, width = 7, height = 4)
 
 #! Need to adapt to different K per temperature!!!
 p1 <- Res %>%
-    filter(parameter == "K") %>%
+    filter(parameter %in% c("K_28", "K_32")) %>%
+    pivot_longer(parameter, names_to = NULL, values_to = "temp") %>%
     ggplot(aes(x = temp, y = mean)) +
     facet_grid(. ~ strain, scales = "free_y") +
     geom_linerange(aes(ymin = hpd05, ymax = hpd95), linewidth = 1, color = "darkgrey") +
@@ -73,7 +79,7 @@ p1 <- Res %>%
     labs(y = "Carrying capacity (K)", x = "Temperature (ºC)") +
     theme_classic()
 p1
-outfile <- file.path(args$outdir, "single_strain_bytemp_logistic_K.png")
+outfile <- file.path(args$outdir, "single_strain_all_logistic_K.png")
 ggsave(outfile, p1, width = 7, height = 4)
-outfile <- file.path(args$outdir, "single_strain_bytemp_logistic_K.svg")
+outfile <- file.path(args$outdir, "single_strain_all_logistic_K.svg")
 ggsave(outfile, p1, width = 7, height = 4)
