@@ -132,8 +132,8 @@ end
 obsdata
 
 # Run model parameter infeference
-n_samples = 500;
-n_warmup = 1000;
+n_samples = 1000;
+n_warmup = 500;
 model = fit_logistic_all(obsdata);
 # map_estimate = maximum_a_posteriori(model)
 # map_estimate.values
