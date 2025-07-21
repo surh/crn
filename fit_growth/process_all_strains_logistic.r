@@ -64,7 +64,7 @@ dat$temp[ dat$type == "b_kst" ] <- dat$parameter[ dat$type == "b_kst" ] %>%
 
 #' Reformat data to get r and K for each strain and temperature
 dat <- dat %>%
-    filter(iteration < 600) %>%
+    # filter(iteration < 600) %>%
     # filter(chain == 1) %>%
     filter(type %in% c("r_0", "b_rs", "b_rt", "b_rst", 
         "K_0", "b_ks", "b_kt", "b_kst")) %>%
@@ -105,6 +105,8 @@ dat <- dat %>%
     })
 dat
 
+#' Calculate statistics for growth rate and carrying capacity for each strain
+#' and temperature
 strains <- unique(dat$strain)
 temps <- unique(dat$temp)
 Res <- tibble()
