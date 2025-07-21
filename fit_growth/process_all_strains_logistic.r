@@ -11,18 +11,7 @@ args$outdir <- "/Users/sur/lab/exp/2025/today3/"
 
 Dat <- read_tsv(file.path(args$indir, "all_logistic_fit.tsv"))
 
-names(Dat) 
-
-Da
-
-strains <- c("ST00154", "ST00164")
-
-strain <- strains[1]
-
-
-rvar_28 <- paste("r_", strain, "_28", sep = "")
-rvar_28
-
+#' Identify variables and reshape data for tidyverse
 dat <- Dat %>% 
     pivot_longer(-c(iteration, chain, lp, n_steps, is_accept, 
         acceptance_rate, log_density, hamiltonian_energy, 
@@ -41,10 +30,6 @@ dat <- Dat %>%
         mutate(type = replace(type, str_detect(parameter,  "^b_kt\\["), "b_kt")) %>%
         mutate(type = replace(type, str_detect(parameter,  "^b_kst\\["), "b_kst")) %>%
         mutate(type = replace(type, str_detect(parameter,  "^b_kb\\["), "b_kb"))
-
-table(dat$type)
-
-
 dat$strain[ dat$type == "b_rs" ] <- dat$parameter[ dat$type == "b_rs" ] %>%
     str_remove("b_rs\\[String7\\(\"") %>%
     str_remove("\"\\)\\]$")
@@ -73,13 +58,11 @@ dat$temp[ dat$type == "b_kst" ] <- dat$parameter[ dat$type == "b_kst" ] %>%
     str_remove("b_kst\\[\"ST[\\d]{5}_") %>%
     str_remove("\"\\]$")
 
+# table(dat$strain, useNA = "always")
+# table(dat$temp, useNA = "always")
+# table(dat$strain,dat$temp, useNA = "always")
 
-
-table(dat$strain, useNA = "always")
-table(dat$temp, useNA = "always")
-table(dat$strain,dat$temp, useNA = "always")
-
-
+#' Reformat data to get r and K for each strain and temperature
 dat <- dat %>%
     filter(iteration < 600) %>%
     # filter(chain == 1) %>%
@@ -142,6 +125,8 @@ for(st in strains){
 Res <- Res %>%
     select(strain, temp, Rhat, everything())
 Res
+write_tsv(Res, file.path(args$outdir, "all_strains_logistic_summary.tsv"))
+
 Res <- Res %>%
     filter(Rhat < 1.01) %>%
     print()
