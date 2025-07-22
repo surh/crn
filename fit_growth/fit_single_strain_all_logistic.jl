@@ -52,6 +52,8 @@ end
     # p = [r, K]
 
     # i is for number of experiment
+    r = Vector{Float64}(undef, (length(obsdata[1])))
+    K = Vector{Float64}(undef, (length(obsdata[1])))
     for i in eachindex(obsdata[1])
         x0i = [obsdata[1][i][1][1]] # initial condition for the i-th experiment
         tspan = extrema(obsdata[1][i][2])
@@ -59,10 +61,10 @@ end
         r_m = r_0 + b_rt[obsdata[1][i][3]] + b_rb[obsdata[1][i][4]]# r is a function of temperature
         K_m = K_0 + b_kt[obsdata[1][i][3]] + b_kb[obsdata[1][i][4]]# r is a function of temperature
 
-        r ~ LogNormal(r_m, sigma_r0) # r is a function of temperature and batch
-        K ~ LogNormal(K_m, sigma_k0) # K is a function of temperature and batch
+        r[i] ~ LogNormal(r_m, sigma_r0) # r is a function of temperature and batch
+        K[i] ~ LogNormal(K_m, sigma_k0) # K is a function of temperature and batch
 
-        p = [r, K] # parameters for the logistic growth model
+        p = [r[i], K[i]] # parameters for the logistic growth model
 
         probh = ODEProblem(logistic_growth, x0i, tspan, p) #remake(prob; x0 = x0i, p = [r, K])
         predicted  = solve(probh, Tsit5(); saveat = obsdata[1][i][2])
