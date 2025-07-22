@@ -59,9 +59,8 @@ end
         r_m = r_0 + b_rt[obsdata[1][i][3]] + b_rb[obsdata[1][i][4]]# r is a function of temperature
         K_m = K_0 + b_kt[obsdata[1][i][3]] + b_kb[obsdata[1][i][4]]# r is a function of temperature
 
-
-        r ~ LogNormal(log(r_m) - sigma_r0^2/2, sigma_r0) # r is a function of temperature and batch
-        K ~ LogNormal(log(K_m) - sigma_k0^2/2, sigma_k0) # K is a function of temperature and batch
+        r ~ LogNormal(r_m, sigma_r0) # r is a function of temperature and batch
+        K ~ LogNormal(K_m, sigma_k0) # K is a function of temperature and batch
 
         p = [r, K] # parameters for the logistic growth model
 
