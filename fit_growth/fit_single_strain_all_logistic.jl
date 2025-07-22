@@ -22,10 +22,13 @@ end
 
 @model function fit_logistic_multidata_all(obsdata)
     # Prior distributions.
-    σ ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    sigma_r0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    # sigma_r0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma_r0 = 0.5
     sigma_rt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_rb ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    # sigma_k0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma_k0 = 0.5
     sigma_kt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_kb ~ InverseGamma(2, 2) #Cauchy(0, 2)#
 
@@ -53,8 +56,12 @@ end
         x0i = [obsdata[1][i][1][1]] # initial condition for the i-th experiment
         tspan = extrema(obsdata[1][i][2])
 
-        r = r_0 + b_rt[obsdata[1][i][3]] + b_rb[obsdata[1][i][4]]# r is a function of temperature
-        K = K_0 + b_kt[obsdata[1][i][3]] + b_kb[obsdata[1][i][4]]# r is a function of temperature
+        r_m = r_0 + b_rt[obsdata[1][i][3]] + b_rb[obsdata[1][i][4]]# r is a function of temperature
+        K_m = K_0 + b_kt[obsdata[1][i][3]] + b_kb[obsdata[1][i][4]]# r is a function of temperature
+
+
+        r ~ LogNormal(log(r_m) - sigma_r0^2/2, sigma_r0) # r is a function of temperature and batch
+        K ~ LogNormal(log(K_m) - sigma_k0^2/2, sigma_k0) # K is a function of temperature and batch
 
         p = [r, K] # parameters for the logistic growth model
 
@@ -63,7 +70,7 @@ end
     
         # k is time (observation)
         for k in eachindex(predicted)
-            obsdata[1][i][1][k] ~  Normal(predicted[k][1], σ^2)
+            obsdata[1][i][1][k] ~  Normal(predicted[k][1], sigma^2)
         end 
     end
 
@@ -72,7 +79,7 @@ end
 
 Dat = CSV.read("/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/pilot_strain_growth_curves_filtered.tsv", 
     DataFrame, delim='\t')
-outdir = "/Users/sur/lab/exp/2025/today3/single_strain_all_logistic/"
+outdir = "/Users/sur/lab/exp/2025/today/single_strain_all_logistic/"
 
 Strains = unique(Dat.strain)
 # strain = Strains[2]
