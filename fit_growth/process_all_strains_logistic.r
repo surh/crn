@@ -164,7 +164,7 @@ p1 <- Res %>%
     geom_linerange(aes(ymin = hpd10, ymax = hpd90), linewidth = 3, color = "darkgrey") +
     geom_point(size = 6, color = "#dd1c77") +
     geom_point(aes(y = median), size = 5, color = "#c994c7") +
-    labs(y = "Growth rate (1/h)", x = "Temperature (ºC)") +
+    labs(y = "Carrying capacity (K)", x = "Temperature (ºC)") +
     theme_classic()
 p1
 outfile <- file.path(args$outdir, "all_strains_logistic_K.png")
