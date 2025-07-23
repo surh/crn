@@ -55,12 +55,16 @@ for(f in infiles){
     Res <- bind_rows(Res, res)
 
 }
-Res
+Res %>%
+    select(-hpd10, -hpd90) %>%
+    print(n = 200)
 outfile <- file.path(args$outdir, paste0("single_strain_", args$pattern, "_summary.tsv"))
 write_tsv(Res, outfile)
 Res <- Res %>%
     filter(Rhat < 1.01) %>%
     print()
+
+
 
 # Plotting the results
 p1 <- Res %>%
