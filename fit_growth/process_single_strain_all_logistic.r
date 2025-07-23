@@ -20,7 +20,6 @@ for(f in infiles){
 
     Dat <- read_tsv(f)
 
-
     Dat <- Dat %>%
         mutate(r_28 = exp(r_0 + `b_rt[28]`)) %>%
         mutate(r_32 = exp(r_0 + `b_rt[32]`)) %>%
@@ -29,7 +28,6 @@ for(f in infiles){
         mutate(delta_r = r_32 - r_28) %>%
         mutate(delta_K = K_32 - K_28) %>%
         select(iteration, chain, r_28, r_32, delta_r, K_28, K_32, delta_K)
-
 
     # Dat %>%
     #     ggplot(aes(x = iteration, y = r_28)) +
@@ -64,11 +62,7 @@ Res <- Res %>%
     filter(Rhat < 1.01) %>%
     print()
 
-
-
-# Res %>% filter(parameter == "r_28") %>% print(n=100)
-# Res %>% filter(parameter == "K") %>% print(n=100)
-
+# Plotting the results
 p1 <- Res %>%
     filter(parameter %in% c("r_28", "r_32")) %>%
     pivot_longer(parameter, names_to = NULL, values_to = "temp") %>%
