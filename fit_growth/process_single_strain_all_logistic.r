@@ -58,9 +58,13 @@ for(f in infiles){
 
 }
 Res
+outfile <- file.path(args$outdir, paste0("single_strain_", args$pattern, "_summary.tsv"))
+write_tsv(Res, outfile)
 Res <- Res %>%
     filter(Rhat < 1.01) %>%
     print()
+
+
 
 # Res %>% filter(parameter == "r_28") %>% print(n=100)
 # Res %>% filter(parameter == "K") %>% print(n=100)
