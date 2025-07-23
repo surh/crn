@@ -99,11 +99,14 @@ end
 end
 
 
+
 Dat = CSV.read("/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/pilot_strain_growth_curves_filtered.tsv", 
     DataFrame, delim='\t')
-outdir = "/Users/sur/lab/exp/2025/today3/all_strains_logistic/"
+outdir = "/Users/sur/lab/exp/2025/today/all_strains_logistic/"
 
 Strains = unique(Dat.strain)
+# Strains = Strains[1:2] # For testing, only use the first two strains
+# Dat = Dat[in.(Dat.strain, Ref(Strains)),:] # or testing, only use the first two strains
 batches = unique(Dat.batch)
 temps = unique(Dat.temp)
 
@@ -139,6 +142,13 @@ obsdata
 n_samples = 1000;
 n_warmup = 500;
 model = fit_logistic_all(obsdata);
+
+
+# Sample from the model Prior
+# prior = sample(model, Prior(),  MCMCThreads(),  n_samples, 4; num_warmup=n_warmup)
+# describe(prior)
+
+
 # map_estimate = maximum_a_posteriori(model)
 # map_estimate.values
 chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4; num_warmup=n_warmup)
