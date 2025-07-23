@@ -22,23 +22,24 @@ end
 
 @model function fit_logistic_all(obsdata)
     # Prior distributions.
-    σ ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     
     # Random effects for strain, temperature, batch and their combinations on growth rate.
-    sigma_r0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    sigma_rt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    sigma_rs ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    sigma_rst ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    sigma_rb ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma_r0 = 1
+    sigma_rt = 1
+    sigma_rs = 1
+    sigma_rst = 1
+    sigma_rb = 1
 
     # Random effects for strain, temperature, batch and their combinations on carrying capacity.
-    sigma_kt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    sigma_ks ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    sigma_kst ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    sigma_kb ~ InverseGamma(2, 2) #Cauchy(0, 2)#
+    sigma_k0 = 1
+    sigma_kt = 1
+    sigma_ks = 1
+    sigma_kst = 1
+    sigma_kb = 1
 
-    r_0 ~ Uniform(0, 3)
-    K_0 ~ Uniform(0, 2)#LogNormal(log(150), 0.1)
+    r_0 ~ Normal(0, sigma_r0^2)
+    K_0 ~ Normal(0, sigma_k0^2)
     
     b_rt = Dict()
     b_rs = Dict()
@@ -47,7 +48,7 @@ end
     b_kt = Dict()
     b_ks = Dict()
     b_kst = Dict()
-    # b_kb = Dict()
+    b_kb = Dict()
     
     for strain in obsdata[4]
         b_rs[string(strain)] ~ Normal(0, sigma_rs^2)
@@ -67,7 +68,7 @@ end
     
     for batch in obsdata[2]
         b_rb[batch] ~ Normal(0, sigma_rb^2)
-        # b_kb[batch] ~ Normal(0, sigma_kb^2)
+        b_kb[batch] ~ Normal(0, sigma_kb^2)
     end
 
     # i is for the combination of batch, strain and temperature
@@ -78,8 +79,11 @@ end
         # r is the growth rate for the combination of batch, strain and temperature
         r = r_0 + b_rs[obsdata[1][i][5]] + b_rt[obsdata[1][i][3]] + b_rst[string(obsdata[1][i][5], "_", obsdata[1][i][3])] + b_rb[obsdata[1][i][4]]
         # K is the growth rate for the combination of batch, strain and temperature
-        K = K_0 + b_ks[obsdata[1][i][5]] + b_kt[obsdata[1][i][3]] + b_kst[string(obsdata[1][i][5], "_", obsdata[1][i][3])] 
+        K = K_0 + b_ks[obsdata[1][i][5]] + b_kt[obsdata[1][i][3]] + b_kst[string(obsdata[1][i][5], "_", obsdata[1][i][3])] + b_kb[obsdata[1][i][4]]
 
+        # Ensure positivity of parameters
+        r = exp(r)
+        K = exp(K)
         p = [r, K] # parameters for the logistic growth model
 
         probh = ODEProblem(logistic_growth, x0i, tspan, p) #remake(prob; x0 = x0i, p = [r, K])
@@ -87,7 +91,7 @@ end
     
         # k is time (observation)
         for k in eachindex(predicted)
-            obsdata[1][i][1][k] ~  Normal(predicted[k][1], σ^2)
+            obsdata[1][i][1][k] ~  Normal(predicted[k][1], sigma^2)
         end 
     end
 
