@@ -23,17 +23,9 @@ end
 @model function fit_logistic_multidata_all(obsdata)
     # Prior distributions.
     sigma ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    # sigma_r0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    # sigma_r0 = 0.5
-    # sigma_rt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_rt = 1
-    # sigma_rb ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_rb = 1
-    # sigma_k0 ~ InverseGamma(2, 2) #Cauchy(0, 2)#
-    # sigma_k0 = 0.5
-    # sigma_kt ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_kt = 1
-    # sigma_kb ~ InverseGamma(2, 2) #Cauchy(0, 2)#
     sigma_kb = 1
 
     b_rt = Dict()
@@ -50,33 +42,21 @@ end
        b_kb[batch] ~ Normal(0, sigma_kb^2)
     end
 
-    # K_0 ~ Uniform(0, 2)#LogNormal(log(150), 0.1)
-    # r_0 ~ Uniform(0, 3)
-
     r_0 ~ Normal(0, 1)
     K_0 ~ Normal(0, 1)
     
-    # p = [r, K]
-
     # i is for number of experiment
-    # r = Vector{Float64}(undef, (length(obsdata[1])))
-    # K = Vector{Float64}(undef, (length(obsdata[1])))
     for i in eachindex(obsdata[1])
         x0i = [obsdata[1][i][1][1]] # initial condition for the i-th experiment
         tspan = extrema(obsdata[1][i][2])
 
-        r = r_0 + b_rt[obsdata[1][i][3]] + b_rb[obsdata[1][i][4]]# r is a function of temperature
-        K = K_0 + b_kt[obsdata[1][i][3]] + b_kb[obsdata[1][i][4]]# r is a function of temperature
+        # r and K are a function of temperature and batch
+        r = r_0 + b_rt[obsdata[1][i][3]] + b_rb[obsdata[1][i][4]]
+        K = K_0 + b_kt[obsdata[1][i][3]] + b_kb[obsdata[1][i][4]]
 
         # Ensure positivity of parameters
         r = exp(r)
         K = exp(K)
-
-        # r[i] ~ LogNormal(r_m, sigma_r0) # r is a function of temperature and batch
-        # K[i] ~ LogNormal(K_m, sigma_k0) # K is a function of temperature and batch
-
-
-
         p = [r, K] # parameters for the logistic growth model
 
         probh = ODEProblem(logistic_growth, x0i, tspan, p) #remake(prob; x0 = x0i, p = [r, K])
@@ -138,9 +118,7 @@ for strain in Strains
     chain = sample(model, NUTS(),  MCMCThreads(),  n_samples, 4; num_warmup=n_warmup)
 
     # describe(chain)
- 
     # hpd(chain; alpha=0.2)
-
     # plot(chain)
 
     Post = DataFrame(chain)
