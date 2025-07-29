@@ -29,14 +29,14 @@ end
     sigma_rt = 1
     sigma_rs = 1
     sigma_rst = 1
-    sigma_rb = 1
+    # sigma_rb = 1
 
     # Random effects for strain, temperature, batch and their combinations on carrying capacity.
     sigma_k0 = 1
     sigma_kt = 1
     sigma_ks = 1
     sigma_kst = 1
-    sigma_kb = 1
+    # sigma_kb = 1
 
     r_0 ~ Normal(0, sigma_r0^2)
     K_0 ~ Normal(0, sigma_k0^2)
@@ -66,20 +66,25 @@ end
         end 
     end
     
-    for batch in obsdata[2]
-        b_rb[batch] ~ Normal(0, sigma_rb^2)
-        b_kb[batch] ~ Normal(0, sigma_kb^2)
-    end
+    # for batch in obsdata[2]
+    #     b_rb[batch] ~ Normal(0, sigma_rb^2)
+    #     b_kb[batch] ~ Normal(0, sigma_kb^2)
+    # end
 
     # i is for the combination of batch, strain and temperature
     for i in eachindex(obsdata[1])
         x0i = [obsdata[1][i][1][1]] # initial condition for the i-th experiment
         tspan = extrema(obsdata[1][i][2])
 
+        # # r is the growth rate for the combination of batch, strain and temperature
+        # r = r_0 + b_rs[obsdata[1][i][5]] + b_rt[obsdata[1][i][3]] + b_rst[string(obsdata[1][i][5], "_", obsdata[1][i][3])] + b_rb[obsdata[1][i][4]]
+        # # K is the growth rate for the combination of batch, strain and temperature
+        # K = K_0 + b_ks[obsdata[1][i][5]] + b_kt[obsdata[1][i][3]] + b_kst[string(obsdata[1][i][5], "_", obsdata[1][i][3])] + b_kb[obsdata[1][i][4]]
+
         # r is the growth rate for the combination of batch, strain and temperature
-        r = r_0 + b_rs[obsdata[1][i][5]] + b_rt[obsdata[1][i][3]] + b_rst[string(obsdata[1][i][5], "_", obsdata[1][i][3])] + b_rb[obsdata[1][i][4]]
+        r = r_0 + b_rs[obsdata[1][i][5]] + b_rt[obsdata[1][i][3]] + b_rst[string(obsdata[1][i][5], "_", obsdata[1][i][3])]
         # K is the growth rate for the combination of batch, strain and temperature
-        K = K_0 + b_ks[obsdata[1][i][5]] + b_kt[obsdata[1][i][3]] + b_kst[string(obsdata[1][i][5], "_", obsdata[1][i][3])] + b_kb[obsdata[1][i][4]]
+        K = K_0 + b_ks[obsdata[1][i][5]] + b_kt[obsdata[1][i][3]] + b_kst[string(obsdata[1][i][5], "_", obsdata[1][i][3])]
 
         # Ensure positivity of parameters
         r = exp(r)
