@@ -71,12 +71,12 @@ end
     return nothing
 end
 
-Dat = CSV.read("/Users/sur/lab/data/2024_rhizo_pilot_syncom_NS/single_strains/pilot_strain_growth_curves_filtered.tsv", 
+Dat = CSV.read("/Users/sur/lab/exp/2025/today2/indiv_growth_curve2.tsv", 
     DataFrame, delim='\t')
-outdir = "/Users/sur/lab/exp/2025/today/single_strain_all_logistic/"
+outdir = "/Users/sur/lab/exp/2025/today2/single_strain_all_logistic/"
 
 Strains = unique(Dat.strain)
-# strain = Strains[1]
+strain = Strains[1]
 
 for strain in Strains
     # Filter data for the specific strain
