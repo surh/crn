@@ -71,6 +71,7 @@ p1
 
 #' # Reaction norm
 #' First it is convenient to convert temp to -1, 0, 1 for low, med and high
+#' TO DO: test if normalizing AUC also helps
 
 Dat <- Dat %>%
   mutate(temp = replace(temp, temp == 30, -1)) %>%
@@ -78,28 +79,66 @@ Dat <- Dat %>%
   mutate(temp = replace(temp, temp == 42, 1))
 Dat
 
+#' Try some general models:
+#' 
+#' * model 0: A simple mopdel where the effect of temperature is constant
+#' for all id's with random intercepts for each id and batch
+#' * model 1: A model where there is different polynomial effect of temperature
+#' on each id, there is a separate batch random intercept.
+#' * model 2: A model with an overall temperature effect, and a id specific
+#' intercept and temperature effect. Temperature effects are polynomial of
+#' order 1. There is a separate batch effect
+#' * model 3: Same as model 2 but with polynomial effects of order 2. Allows
+#' for curvature in reaction norm
+#' 
+#' Models 2 & 3 are models *a la Villemereuil* and can be easily partitioned
+#' into different sources of variance. I expect model 3 will be the most
+#' appropriate for our data. Note that in order to use model 3 we need
+#' to have at least 3 environmental variables.
+model_f0 <- formula(AUC ~ 1 + temp + temp^2 + (1 | id) + (1 | batch))
+model_f1 <- formula(AUC ~ 1 + (1 + temp + temp^2 | id) + (1 | batch))
+model_f2 <- formula(AUC ~ 1 + temp + (1 + temp | id) + (1 | batch))
+model_f3 <- formula(AUC ~ 1 + temp + temp^2 + (1 + temp + temp^2 | id) + (1 | batch))
 
-mp0 <- brm(AUC ~ 1 + temp + temp^2 + (1 | id) + (1 | batch),
+
+mp0 <- brm(model_f0,
            data = Dat,
-           chains = 4, iter = 4000, warmup = 3000, threads = 4,
-           control = list(adapt_delta = 0.95))
+           chains = 4, iter = 4000, warmup = 3000, cores = 4,
+           control = list(adapt_delta = 0.99),
+           save_pars = save_pars(all = TRUE))
+mp1 <- brm(model_f1,
+           data = Dat,
+           chains = 4, iter = 4000, warmup = 3000, cores = 4,
+           control = list(adapt_delta = 0.99),
+           save_pars = save_pars(all = TRUE))
+mp2 <- brm(model_f2,
+           data = Dat,
+           chains = 4, iter = 4000, warmup = 3000, cores = 4,
+           control = list(adapt_delta = 0.99),
+           save_pars = save_pars(all = TRUE))
+mp3 <- brm(model_f3,
+           data = Dat,
+           chains = 4, iter = 4000, warmup = 3000, cores = 4,
+           control = list(adapt_delta = 0.99),
+           save_pars = save_pars(all = TRUE))
+
+#' Surprisingly mp1 is better than mp3 according to AIC, probably because
+#' no general trend is produced in the data
+AIC(mp0, mp1, mp2, mp3)
+
+
+LOO(mp0, mp1, mp2, mp3, moment_match = TRUE)
+
+
+
+
+
+
+
 summary(mp0)
-
-
-
-mp1 <- brm(AUC ~ 1 + (1 | temp + temp^2) + (1 | id) + (1 | batch),
-           data = Dat,
-           chains = 4, iter = 4000, warmup = 3000)
-
 summary(mp1)
-
-
-mp2 <- brm(AUC ~ 1 + temp + (1 + temp | id), data = Dat)
-m1.brms
-
-
-
-
+summary(mp2)
+summary(mp3)
 
 
 
