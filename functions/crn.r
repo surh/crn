@@ -1,6 +1,6 @@
 #' ## Extract params from polynomial models
 partition_variance_polynomial <- function(mp,
-                                          pheno_name = "OD", 
+                                          pheno_name = "AUC", 
                                           com_name = "Community"){
 
     #' Design matrix
