@@ -150,11 +150,18 @@ design_f
 
 #' We need to define a matrix of relatedness between id's (strains or syncoms
 #' depending on dataset). For strains we would use the gANI, for syncoms we
-#' can use the proporion of shared strains or the UniFrac distance. Here for
-#' simplicity I would assume that ids are all equally dissimilar (technically
-#' I'm assuming iid). NOTE: Need to incorporate this with real data.
+#' can use the proportion of shared strains or the UniFrac distance. 
+#' Here, based on the values chose for simulation I will assume that ST04 & ST03
+#' are quite similar, ST01 is a bit more disimilar to both, and ST01 is the
+#' most different of all,
 A <- diag(1, nrow = length(unique(Dat$id)))
 colnames(A) <- rownames(A) <- unique(Dat$id)
+A["ST04", "ST03"] <- A["ST03", "ST04"] <- 0.9
+A["ST04", "ST01"] <- A["ST01", "ST04"] <- 0.7
+A["ST03", "ST01"] <- A["ST01", "ST03"] <- 0.7
+A["ST02", "ST01"] <- A["ST01", "ST02"] <- 0.5
+A["ST02", "ST03"] <- A["ST03", "ST02"] <- 0.5
+A["ST02", "ST04"] <- A["ST04", "ST02"] <- 0.5
 A
 
 #' Since we are going to use a quadratic model (to incorporate curvature),
