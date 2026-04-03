@@ -363,16 +363,18 @@ Post
 #' VPlas decomposition
 vplas_post <- Post %>%
   pmap(function(a, b, c, G, V_R, .chain, .iteration, .draw){
-    # rn_phi_decomp(theta = c(a = a, b = b, c = c),
-    #               X = seq_X,
-    #               S = theta_vcov,
-    #               wt_env = rep(1, times = length(seq_env)))
-    
-    rn_pi_decomp(theta = c(a = a, b = b, c = c),
-                 V_theta = G,
-                 env = seq_env,
-                 shape = expression(a + b * x + c * x^2),
-                 wt_env = rep(1, times = length(seq_env)))
+    rn_phi_decomp(theta = c(a = a, b = b, c = c),
+                  X = seq_X,
+                  S = theta_vcov,
+                  wt_env = rep(1, times = length(seq_env)))
+
+    # Pi decomposition is much slower, but seems to work better
+    # in simulated data
+    # rn_pi_decomp(theta = c(a = a, b = b, c = c),
+    #              V_theta = G,
+    #              env = seq_env,
+    #              shape = expression(a + b * x + c * x^2),
+    #              wt_env = rep(1, times = length(seq_env)))
     }, .progress = TRUE) %>%
   bind_rows() %>%
   select(where(function(column){abs(mean(column)) > 1e-5})) %>%
@@ -385,16 +387,42 @@ posterior::summarise_draws(vplas_post)
 bayesplot::mcmc_trace(vplas_post)
 
 bayesplot::mcmc_areas(vplas_post,
-                      regex_pars = "^V",
+                      pars = "V_Plas",
                       prob = 0.95,
                       area_method = "scaled height") /
 bayesplot::mcmc_areas(vplas_post,
-             regex_pars = "^[^V]",
+             # pars = c("Phi_b", "Phi_c"),
+             pars = c("Pi_Sl", "Pi_Cv"),
              prob = 0.95,
              area_method = "scaled height") +
   patchwork::plot_layout(heights = c(1, 2))
 
 
+
+#' Relatednes decomposition
+vrel_post <- Post %>%
+  pmap(function(a, b, c, G, V_R, .chain, .iteration, .draw){
+    rn_gen_decomp(theta = c(a = a, b = b, c = c),
+                  G_theta = G,
+                  X = seq_X,
+                  wt_env = rep(1, times = length(seq_env)))
+  }, .progress = TRUE) %>%
+  bind_rows() %>%
+  select(where(function(column){abs(mean(column)) > 1e-5})) %>%
+  cbind(post_info) %>%
+  as_draws_df()
+vrel_post
+
+posterior::summarise_draws(vrel_post)
+bayesplot::mcmc_trace(vrel_post)
+bayesplot::mcmc_areas(vrel_post,
+                      pars = c("V_Add", "V_A", "V_AxE"),
+                      prob = 0.95,
+                      area_method = "scaled height")
+bayesplot::mcmc_areas(vrel_post,
+                      regex_pars = "^[^V]",
+                      prob = 0.95,
+                      area_method = "scaled height") 
 
 
 
