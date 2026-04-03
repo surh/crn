@@ -1,6 +1,7 @@
 setwd("/home/sur/lab/exp/2026/today/")
 library(tidyverse)
 library(brms)
+library(Reacnorm)
 box::use(./functions/crn)
 
 
@@ -122,33 +123,105 @@ mp3 <- brm(model_f3,
            control = list(adapt_delta = 0.99),
            save_pars = save_pars(all = TRUE))
 
-#' Surprisingly mp1 is better than mp3 according to AIC, probably because
-#' no general trend is produced in the data
-AIC(mp0, mp1, mp2, mp3)
+# summary(mp0)
+# summary(mp1)
+# summary(mp2)
+# summary(mp3)
 
+#' As expected mp3 is the best model, though it is tied with mp1 in the simulated
+#' data
+LOO(mp0, mp1, mp2, mp3, moment_match = TRUE, reloo = TRUE)
 
-LOO(mp0, mp1, mp2, mp3, moment_match = TRUE)
-
-
-
-
-
-
-
-summary(mp0)
-summary(mp1)
-summary(mp2)
-summary(mp3)
+#' In any case simpler don't capture behavior as expected. I will
+#' calculate the contributions of different factors for models 1 & 3. In
+#' real data we only need to calculate whatever is the best model...unless
+#' there is no clear best
 
 
 
+# crn$partition_variance_polynomial(mp = mp1, pheno_name = "AUC", com_name = "id")
+
+# Get formula for design i
+design_f <- reformulas::findbars(model_f1)[[1]][[2]]
+design_f
 
 
+#' # Using reacnorm package
 
+#' We need to define a matrix of relatedness between id's (strains or syncoms
+#' depending on dataset). For strains we would use the gANI, for syncoms we
+#' can use the proporion of shared strains or the UniFrac distance. Here for
+#' simplicity I would assume that ids are all equally dissimilar (technically
+#' I'm assuming iid). NOTE: Need to incorporate this with real data.
+A <- diag(1, nrow = length(unique(Dat$id)))
+colnames(A) <- rownames(A) <- unique(Dat$id)
+A
 
+#' Since we are going to use a quadratic model (to incorporate curvature),
+#' it is convenient to square temperature
+Dat <- Dat %>%
+  mutate(temp_sq = temp ^ 2)
 
+#' Define model formula. IMPORTANT: Incorporate our relatedness matrix
+#' in the grouping factor. IMPORTANT:2  the slope temrs (tmp & temp_sq here),
+#' should be identical in the fixed and random effects
+model_f <- brmsformula(AUC ~ 1 + temp + temp_sq + ( 1 + temp + temp_sq | gr(id, cov = A) ))
+m.quad_crn <- brm(model_f,
+                  data = Dat,
+                  data2 = list(A = A),
+                  save_pars = save_pars(group = FALSE),
+                  chains = 4,
+                  cores = 4,
+                  seed = 6543,
+                  iter = 5000,
+                  warmup = 3000,
+                  control = list(adapt_delta = 0.99))
+summary(m.quad_crn)
+plot(m.quad_crn)
 
+#' Same but with batch effects
+model_f <- brmsformula(AUC ~ 1 + temp + temp_sq + ( 1 + temp + temp_sq | gr(id, cov = A) ) + (1 | batch))
+m.quad_crn_batch <- brm(model_f,
+                  data = Dat,
+                  data2 = list(A = A),
+                  save_pars = save_pars(group = FALSE),
+                  chains = 4,
+                  cores = 4,
+                  seed = 6543,
+                  iter = 5000,
+                  warmup = 3000,
+                  control = list(adapt_delta = 0.99))
 
+summary(m.quad_crn_batch)
+plot(m.quad_crn_batch)
 
+#' Plotting the reaction norm
+
+Preds <- Dat %>%
+  mutate(preds = predict(m.quad_crn, re_formula = NA) %>%
+           as_tibble()) %>%
+  tidyr::unpack(preds) %>%
+  select(temp,
+         preds = Estimate,
+         preds_low = Q2.5,
+         preds_up = Q97.5) %>%
+  summarise(across(starts_with("preds"), mean),
+            .by = temp)
+Preds
+
+p1 <- Dat %>%
+  ggplot(aes(x = temp, y = AUC)) +
+  geom_line(aes(col = id,
+                group = interaction(id, batch, sep = "_", drop = TRUE)),
+            linewidth = 3) +
+  geom_ribbon(data = Preds,
+              mapping = aes(x = temp, ymin = preds_low, ymax = preds_up, y = preds),
+              alpha = 0.3) +
+  geom_line(data = Preds,
+            mapping = aes(x = temp, y = preds),
+            linewidth = 1) + 
+  
+  theme_classic()
+p1
 
 
