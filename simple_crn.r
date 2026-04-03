@@ -195,10 +195,17 @@ m.quad_crn_batch <- brm(model_f,
 summary(m.quad_crn_batch)
 plot(m.quad_crn_batch)
 
-#' Plotting the reaction norm
+#' Compare models
+# LOO(m.quad_crn, m.quad_crn_batch)
 
+#' In real data we are likely to have batch effects so I will focus on the model
+#' with batch term
+
+
+#' # Plotting the reaction norm
+#' First we calculate the 95% posterior intervals
 Preds <- Dat %>%
-  mutate(preds = predict(m.quad_crn, re_formula = NA) %>%
+  mutate(preds = predict(m.quad_crn_batch, re_formula = NA) %>%
            as_tibble()) %>%
   tidyr::unpack(preds) %>%
   select(temp,
@@ -209,6 +216,7 @@ Preds <- Dat %>%
             .by = temp)
 Preds
 
+#' Then we add to our base plot
 p1 <- Dat %>%
   ggplot(aes(x = temp, y = AUC)) +
   geom_line(aes(col = id,
@@ -223,5 +231,60 @@ p1 <- Dat %>%
   
   theme_classic()
 p1
+
+#' Decompose the variance using the Reacnorm package
+seq_env <- c(-1, 0,1)
+# seq_env <- seq(from = -1, to = 1, by = 0.1)
+env_X <- cbind(1, seq_env, seq_env ^ 2) # Design matrix for the quadratic model
+
+#' We extract the different models parameters. IMPORTANT: We need to change
+#' the names of the parameters to "a" (for intercept), "b" (for the main env
+#' variable), and "c" (for quadratic term of the environment). The order will
+#' match the order of terms in the formula of the model fit
+
+#' Firs the fixed effect parameters
+theta <- fixef(m.quad_crn_batch, robust = TRUE)[, "Estimate"] # Median estimates
+names(theta) <- c("a", "b", "c")
+theta               
+
+#' We get the estimate uncertainties as well.
+theta_vcov <- vcov(m.quad_crn_batch)
+rownames(theta_vcov) <- colnames(theta_vcov) <- names(theta)
+theta_vcov
+
+#' The matrix of relatedness (G-matrix) of the parameters
+G_mat <-  VarCorr(m.quad_crn_batch, robust = TRUE)[["id"]][["cov"]][ , "Estimate", ]
+rownames(G_mat) <- colnames(theta_vcov) <- names(theta)
+G_mat
+
+#' The residual and batch SD's which we square (for variance) and add (for total variance)
+vr_ext <- VarCorr(m.quad_crn_batch, robust = TRUE)[["residual__"]][["sd"]][ , "Estimate" ] ^2 +
+  VarCorr(m.quad_crn_batch, robust = TRUE)[["batch"]][["sd"]][,"Estimate"] ^ 2
+vr_ext
+
+#' Decompose the variance. The `wt_env` parameter is designed for natural
+#' env distributions. Here, since it is an experiment, and we don't know
+#' the natural distributions, we give equal weights to all envs
+vplas <- rn_pi_decomp(theta = theta,
+                      V_theta = G_mat,
+                      env = seq_env,
+                      shape = expression(a + b * x + c * x^2),
+                      wt_env = rep(1, times = length(seq_env)))
+vplas
+
+#' Here we see that there is little overall variation due to the environment (plasticity),
+#' around 3% (V_plas), this makes sense as the variation between temps, is much smaller
+#' than the variation between ids, in real data it could be quite different.
+#' Then, Pi_Sl is the proportion of V_Plas is explained, and Pi_Cv is the
+#' proportion of V_Plas explained by the curvature. Here There is no common slope
+#' so that is why almost 98% of V_Plas is explained by the curvature.
+#' 
+#' Thecnically we could also use the  Phi decomposition to reach a similar
+#' conclusion. ¿Or only if wt_env is normal?
+# rn_phi_decomp(theta = theta,
+#               X = env_X,
+#               S = theta_vcov,
+#               wt_env = rep(1, times = length(seq_env)))
+
 
 
