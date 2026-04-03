@@ -1,5 +1,6 @@
 setwd("/home/sur/lab/exp/2026/today/")
 library(tidyverse)
+library(patchwork)
 library(brms)
 library(Reacnorm)
 box::use(./functions/crn)
@@ -202,6 +203,10 @@ m.quad_crn_batch <- brm(model_f,
 summary(m.quad_crn_batch)
 plot(m.quad_crn_batch)
 
+#' In this case the warnings about treedepth probably have to do
+#' with the fact that the relatedness matrix makes no sense with the observations
+#' in real data we need to pay attention to warnings. I'll ignore here.
+
 #' Compare models
 # LOO(m.quad_crn, m.quad_crn_batch)
 
@@ -280,11 +285,11 @@ vplas <- rn_pi_decomp(theta = theta,
 vplas
 
 #' Here we see that there is little overall variation due to the environment (plasticity),
-#' around 3% (V_plas), this makes sense as the variation between temps, is much smaller
+#' around 1.5% (V_plas), this makes sense as the variation between temps, is much smaller
 #' than the variation between ids, in real data it could be quite different.
 #' Then, Pi_Sl is the proportion of V_Plas is explained, and Pi_Cv is the
 #' proportion of V_Plas explained by the curvature. Here There is no common slope
-#' so that is why almost 98% of V_Plas is explained by the curvature.
+#' so that is why almost 70% of V_Plas is explained by the curvature.
 #' 
 #' Thecnically we could also use the  Phi decomposition to reach a similar
 #' conclusion. ¿Or only if wt_env is normal?
@@ -292,6 +297,104 @@ vplas
 #               X = env_X,
 #               S = theta_vcov,
 #               wt_env = rep(1, times = length(seq_env)))
+
+#'  # Relatedness decomposition
+vrel <- rn_gen_decomp(theta = theta,
+                      G_theta = G_mat,
+                      X = seq_X,
+                      wt_env = rep(1, times = length(seq_env)))
+vrel
+
+#' Here V_Add is the the variance due to differences between ids (here strains).
+#' Which can be decomposed as V_A, the variance due to difference between mean
+#' phenotypic values of each id (also called environment-blind), and V_AxE
+#' which is the variance around those means (the difference in the plastic response
+#' to environment between ids). Can be expressed as a percentace, and here
+#' we would see that about a third (~32%) of the variance between id's is due
+#' to differences in their response to the environment, and the remaining, is
+#' do to overall differences in their mean phenotypic values.
+#' 
+#' The gamma and iota values further decompose V_A & V_AxE, respectively, 
+#' into their slope (Gamma_b, Iota_b) and curvature (Gamma_c, Iota_c) components.
+#' and curvature elements. Though negative values have to be treated with care.
+
+#' We can normalize everything as a function of the total phenotypic variance
+#' (including batch and residual)
+var_tot <- vplas[["V_Plas"]] + vrel[["V_Add"]] + vr_ext
+var_pheno <-
+  c(P2 = vplas[["V_Plas"]] / var_tot,
+    h2_RN = vrel[["V_Add"]] / var_tot,
+    h2 = vrel[["V_A"]] / var_tot,
+    h2_I = vrel[["V_AxE"]] / var_tot,
+    T2 = (vplas[["V_Plas"]] + vrel[["V_Add"]]) / var_tot)
+var_pheno
+
+#' Getting the posterior
+
+#' Firs the fixed effect parameters
+theta_post <- fixef(m.quad_crn_batch, summary = FALSE)
+colnames(theta_post) <- c("a", "b", "c")
+head(theta_post)
+
+#' The residual and batch SD's (squared and added)
+vr_ext_post <- VarCorr(m.quad_crn_batch, summary = FALSE)[["residual__"]][["sd"]][ , 1 ] ^ 2 +
+  VarCorr(m.quad_crn_batch, summary = FALSE)[["batch"]][["sd"]][ , 1 ] ^ 2
+head(vr_ext_post)
+
+#' G_mat needs to be transformed into a list
+G_mat_post <- VarCorr(m.quad_crn_batch, summary = FALSE)[["id"]][["cov"]] %>%
+  apply(1,function(mat){mat}, simplify = FALSE) %>% # Converts 3D array into list
+  map(function(mat){
+    rownames(mat) <- colnames(mat) <- c("a", "b", "c")
+    return(mat)
+    })
+head(G_mat_post)
+
+#' For convenience, combine everything into a posterior distribution object
+#' using the posterior package
+Post <- as_draws_df(theta_post)
+Post[["G"]] <- G_mat_post
+Post[["V_R"]] <- vr_ext_post
+Post <- posterior::thin_draws(Post, thin = nrow(theta_post) / 1000)
+post_info <- select(Post, starts_with(".")) # convenience for new objects
+Post
+
+
+#' VPlas decomposition
+vplas_post <- Post %>%
+  pmap(function(a, b, c, G, V_R, .chain, .iteration, .draw){
+    # rn_phi_decomp(theta = c(a = a, b = b, c = c),
+    #               X = seq_X,
+    #               S = theta_vcov,
+    #               wt_env = rep(1, times = length(seq_env)))
+    
+    rn_pi_decomp(theta = c(a = a, b = b, c = c),
+                 V_theta = G,
+                 env = seq_env,
+                 shape = expression(a + b * x + c * x^2),
+                 wt_env = rep(1, times = length(seq_env)))
+    }, .progress = TRUE) %>%
+  bind_rows() %>%
+  select(where(function(column){abs(mean(column)) > 1e-5})) %>%
+  cbind(post_info) %>% # Add chain and draw info
+  as_draws_df()
+vplas_post
+
+
+posterior::summarise_draws(vplas_post)
+bayesplot::mcmc_trace(vplas_post)
+
+bayesplot::mcmc_areas(vplas_post,
+                      regex_pars = "^V",
+                      prob = 0.95,
+                      area_method = "scaled height") /
+bayesplot::mcmc_areas(vplas_post,
+             regex_pars = "^[^V]",
+             prob = 0.95,
+             area_method = "scaled height") +
+  patchwork::plot_layout(heights = c(1, 2))
+
+
 
 
 
