@@ -6,6 +6,9 @@ library(brms)
 library(Reacnorm)
 box::use(./functions/crn)
 
+start_time <- date()
+date()
+
 #' # Simulate some simple data
 #' A bit cumbersome, but the line below simulate data for 4 **id**'s
 #' (could be strains or syncoms) in 3 temps, 2 reps, and 4 batches (1 rep
@@ -408,8 +411,8 @@ bayesplot::mcmc_areas(vplas_post,
                       prob = 0.95,
                       area_method = "scaled height") /
 bayesplot::mcmc_areas(vplas_post,
-             # pars = c("Phi_b", "Phi_c"),
-             pars = c("Pi_Sl", "Pi_Cv"),
+             pars = c("Phi_b", "Phi_c"),
+             # pars = c("Pi_Sl", "Pi_Cv"),
              prob = 0.95,
              area_method = "scaled height") +
   patchwork::plot_layout(heights = c(1, 2))
@@ -444,5 +447,4 @@ bayesplot::mcmc_areas(vrel_post,
                       prob = 0.95,
                       area_method = "scaled height") 
 
-
-
+date()
