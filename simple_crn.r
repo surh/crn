@@ -301,7 +301,7 @@ vplas
 #'  # Relatedness decomposition
 vrel <- rn_gen_decomp(theta = theta,
                       G_theta = G_mat,
-                      X = seq_X,
+                      X = seq_env,
                       wt_env = rep(1, times = length(seq_env)))
 vrel
 
@@ -364,7 +364,7 @@ Post
 vplas_post <- Post %>%
   pmap(function(a, b, c, G, V_R, .chain, .iteration, .draw){
     rn_phi_decomp(theta = c(a = a, b = b, c = c),
-                  X = seq_X,
+                  X = seq_env,
                   S = theta_vcov,
                   wt_env = rep(1, times = length(seq_env)))
 
@@ -404,7 +404,7 @@ vrel_post <- Post %>%
   pmap(function(a, b, c, G, V_R, .chain, .iteration, .draw){
     rn_gen_decomp(theta = c(a = a, b = b, c = c),
                   G_theta = G,
-                  X = seq_X,
+                  X = seq_env,
                   wt_env = rep(1, times = length(seq_env)))
   }, .progress = TRUE) %>%
   bind_rows() %>%
