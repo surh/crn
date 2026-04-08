@@ -139,10 +139,9 @@ m.quad_crn_batch <- brm(model_f,
                   control = list(adapt_delta = 0.99))
 
 #+ Model summaries
-summary(m.quad_crn)
+summary(m.quad_crn_batch)
 
 #+ Traceplots
-plot(m.quad_crn)
 plot(m.quad_crn_batch)
 
 #+ Select model
@@ -179,13 +178,28 @@ p1 <- Dat %>%
 p1
 
 #' ## Decompose the variance using the Reacnorm package
-#' We need to extract some values from the model fit
+#' We need to extract some values from the model fit. For full bayesian
+#' treatment we need the posterior estimates of each parameter.
 #+ Extract model params
-#+ Env values
+# Constructed values
 seq_env <- c(-1, 0,1)
 env_X <- cbind(1, seq_env, seq_env ^ 2) # Design matrix for the quadratic model
 
-#+ Fixed effect estimates Extract central estimates
+# Fixed effect posterior
+theta_post <- fixef(m.quad_crn_batch, summary = FALSE)
+colnames(theta_post) <- c("a", "b", "c") # Rename for phi decomposition
+head(theta_post)
+
+
+
+
+
+
+
+
+
+
+# Fixed effect estimates Extract central estimates
 theta <- fixef(main_model, robust = TRUE)[, "Estimate"] # Median estimates
 names(theta) <- c("a", "b", "c") #' Only for polynomial degree 2
 theta_vcov <- vcov(main_model)
