@@ -207,7 +207,10 @@ var_ext_post <- VarCorr(main_model, summary = FALSE)[["residual__"]][["sd"]][ , 
 head(var_ext_post)
 
 #' Now we combine everything into one big posterior object. This requires
-#' the `posterior` package.
+#' the `posterior` package. It simplifies keeping chains and iterations
+#' for plotting with `bayesplot`.
+
+
 
 
 
