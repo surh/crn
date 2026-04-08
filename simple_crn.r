@@ -179,16 +179,35 @@ p1
 
 #' ## Decompose the variance using the Reacnorm package
 #' We need to extract some values from the model fit. For full bayesian
-#' treatment we need the posterior estimates of each parameter.
+#' treatment we need the posterior estimates of each parameter. We have to add
+#' the residual and batch variance, so we extract the SDs, square them, and
+#' add them
 #+ Extract model params
 # Constructed values
 seq_env <- c(-1, 0,1)
 env_X <- cbind(1, seq_env, seq_env ^ 2) # Design matrix for the quadratic model
 
 # Fixed effect posterior
-theta_post <- fixef(m.quad_crn_batch, summary = FALSE)
+theta_post <- fixef(main_model, summary = FALSE)
 colnames(theta_post) <- c("a", "b", "c") # Rename for phi decomposition
 head(theta_post)
+
+# G_mat needs to be transformed from a 3D array into a list
+G_mat_post <- VarCorr(main_model, summary = FALSE)[["id"]][["cov"]] %>%
+  apply(1,function(mat){mat}, simplify = FALSE) %>% # Converts 3D array into list
+  map(function(mat){
+    rownames(mat) <- colnames(mat) <- c("a", "b", "c") # Rename for phi-decomp
+    return(mat)
+  })
+head(G_mat_post)
+
+# Batch and residual variance (aka external variance)
+var_ext_post <- VarCorr(main_model, summary = FALSE)[["residual__"]][["sd"]][ , 1 ] ^ 2 +
+  VarCorr(main_model, summary = FALSE)[["batch"]][["sd"]][ , 1 ] ^ 2
+head(var_ext_post)
+
+#' Now we combine everything into one big posterior object. This requires
+#' the `posterior` package.
 
 
 
