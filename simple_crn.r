@@ -1,19 +1,17 @@
-#+ Load dependencies
 setwd("/home/sur/lab/exp/2026/today/")
+#+ Load dependencies
 library(tidyverse)
-library(patchwork)
+# library(patchwork)
 library(brms)
 library(Reacnorm)
-box::use(./functions/crn)
 
-start_time <- date()
 date()
 
 #' # Simulate some simple data
 #' A bit cumbersome, but the line below simulate data for 4 **id**'s
 #' (could be strains or syncoms) in 3 temps, 2 reps, and 4 batches (1 rep
 #' of 2 id's per batch). A switch in id's per batch is simulated.
-#' Overall variability is modelled (includes measurement error) and
+#' Overall variability is modeled (includes measurement error) and
 #' batch-to-batch variations is simulated as additive 4-times smaller
 #' than replicate variability (in reality it could be opposite, more batch
 #' than biological variability)
@@ -64,10 +62,12 @@ Dat <- bind_rows(
   mutate(AUC = AUC + rnorm(n = length(id), mean = 0, sd = var_rep)) %>%
   mutate(AUC = AUC + b_batch[batch])
 
-#+ View data
 #' Contigency table of samples
+#+ View data
 ftable(id + batch ~ temp, data = Dat)
+
 #' Plot of the resulting *reaction norms*.
+#+ Plot data
 p1 <- Dat %>%
   ggplot(aes(x = temp, y = AUC,
              group = interaction(id, batch, sep = "_", drop = TRUE))) +
@@ -75,9 +75,13 @@ p1 <- Dat %>%
   theme_classic()
 p1
 
-#' # Reaction norm
-#' First it is convenient to convert temp to -1, 0, 1 for low, med and high
-#' TO DO: test if normalizing AUC also helps
+#' # Reaction norms
+#' 
+#' ## Prepare data
+#' First it is convenient to convert temp to -1, 0, 1 for low, med and high.
+#' 
+#' **TO DO**: We should try the same analysis but standardizing the AUC values
+#' as well.
 #+ reformat data
 Dat <- Dat %>%
   mutate(temp = replace(temp, temp == 30, -1)) %>%
@@ -85,82 +89,25 @@ Dat <- Dat %>%
   mutate(temp = replace(temp, temp == 42, 1))
 Dat
 
-#' Try some general models:
+#' ## Prepare variables
 #' 
-#' * model 0: A simple mopdel where the effect of temperature is constant
-#' for all id's with random intercepts for each id and batch
-#' * model 1: A model where there is different polynomial effect of temperature
-#' on each id, there is a separate batch random intercept.
-#' * model 2: A model with an overall temperature effect, and a id specific
-#' intercept and temperature effect. Temperature effects are polynomial of
-#' order 1. There is a separate batch effect
-#' * model 3: Same as model 2 but with polynomial effects of order 2. Allows
-#' for curvature in reaction norm
-#' 
-#' Models 2 & 3 are models *a la Villemereuil* and can be easily partitioned
-#' into different sources of variance. I expect model 3 will be the most
-#' appropriate for our data. Note that in order to use model 3 we need
-#' to have at least 3 environmental variables.
-#+ Define models
-model_f0 <- formula(AUC ~ 1 + temp + temp^2 + (1 | id) + (1 | batch))
-model_f1 <- formula(AUC ~ 1 + (1 + temp + temp^2 | id) + (1 | batch))
-model_f2 <- formula(AUC ~ 1 + temp + (1 + temp | id) + (1 | batch))
-model_f3 <- formula(AUC ~ 1 + temp + temp^2 + (1 + temp + temp^2 | id) + (1 | batch))
-
-#+ Fit model 0
-mp0 <- brm(model_f0,
-           data = Dat,
-           chains = 4, iter = 4000, warmup = 3000, cores = 4,
-           control = list(adapt_delta = 0.99),
-           save_pars = save_pars(all = TRUE))
-#+ Fit model 1
-mp1 <- brm(model_f1,
-           data = Dat,
-           chains = 4, iter = 4000, warmup = 3000, cores = 4,
-           control = list(adapt_delta = 0.99),
-           save_pars = save_pars(all = TRUE))
-#+ Fit model 2
-mp2 <- brm(model_f2,
-           data = Dat,
-           chains = 4, iter = 4000, warmup = 3000, cores = 4,
-           control = list(adapt_delta = 0.99),
-           save_pars = save_pars(all = TRUE))
-#+ Fit model 3
-mp3 <- brm(model_f3,
-           data = Dat,
-           chains = 4, iter = 4000, warmup = 3000, cores = 4,
-           control = list(adapt_delta = 0.99),
-           save_pars = save_pars(all = TRUE))
-
-# summary(mp0)
-# summary(mp1)
-# summary(mp2)
-# summary(mp3)
-
-#' As expected mp3 is the best model, though it is tied with mp1 in the simulated
-#' data
-#+ Compare models
-LOO(mp0, mp1, mp2, mp3, moment_match = TRUE, reloo = TRUE)
-
-#' In any case simpler don't capture behavior as expected. I will
-#' calculate the contributions of different factors for models 1 & 3. In
-#' real data we only need to calculate whatever is the best model...unless
-#' there is no clear best
-
-# crn$partition_variance_polynomial(mp = mp1, pheno_name = "AUC", com_name = "id")
-# Get formula for design i
-# design_f <- reformulas::findbars(model_f1)[[1]][[2]]
-# design_f
-
-
-#' # Using reacnorm package
-
 #' We need to define a matrix of relatedness between id's (strains or syncoms
-#' depending on dataset). For strains we would use the gANI, for syncoms we
-#' can use the proportion of shared strains or the UniFrac distance. 
-#' Here, based on the values chose for simulation I will assume that ST04 & ST03
-#' are quite similar, ST01 is a bit more disimilar to both, and ST01 is the
-#' most different of all,
+#' depending on dataset). For strains we should try the following:
+#' 1. The gANI
+#' 2. Proportion of shared genes
+#' 
+#' For syncoms we have several options to test:
+#' 1. The proportion of shared strains.
+#' 2. The weighted UniFrac distance.
+#' 3. The Bray-Curtis dissimilarity between inocula
+#' 
+#' Here, I make up some nombers. I will assume that ST04 & ST03
+#' are quite similar, ST01 is a bit more dissimilar to both, and ST01 is the
+#' most different of all. **IMPORTANT**: Because the numbers are made up,
+#' the model don't fit very well and I get a number of warnings, but we
+#' expect inr eal data we would get a better fit.
+#' 
+#' **QUESTION** Does the matrix need to be symetrical?
 #+ Relatedness matrix
 A <- diag(1, nrow = length(unique(Dat$id)))
 colnames(A) <- rownames(A) <- unique(Dat$id)
@@ -173,38 +120,37 @@ A["ST02", "ST04"] <- A["ST04", "ST02"] <- 0.5
 A
 
 #' Since we are going to use a quadratic model (to incorporate curvature),
-#' it is convenient to square temperature
-#+ Prepare data
+#' it is convenient to have a separate variable with square temperature-
+#+ Square temperature
 Dat <- Dat %>%
   mutate(temp_sq = temp ^ 2)
 
-#' Define model formula. IMPORTANT: Incorporate our relatedness matrix
-#' in the grouping factor. IMPORTANT:2  the slope temrs (tmp & temp_sq here),
-#' should be identical in the fixed and random effects
-#+ Fit quadratic model
-#+ Model with relatednes
+#' ## Run models
+#' 
+#' We first define the model formula and then run the model fit. We have two
+#' versions, one with batch effects and one without batch effects (in reality
+#' we always want to incorporate batch effects).
+#' 
+#' **IMPORTANT** We need the slope terms (temp & temp_sq) to be identical in
+#' the fixed and random effects
+#+ Fit quadratic models
 model_f <- brmsformula(AUC ~ 1 + temp + temp_sq + ( 1 + temp + temp_sq | gr(id, cov = A) ))
 m.quad_crn <- brm(model_f,
                   data = Dat,
                   data2 = list(A = A),
-                  save_pars = save_pars(group = FALSE),
+                  save_pars = save_pars(all = TRUE),
                   chains = 4,
                   cores = 4,
                   seed = 6543,
                   iter = 5000,
                   warmup = 3000,
                   control = list(adapt_delta = 0.99))
-summary(m.quad_crn)
-plot(m.quad_crn)
 
-#' Same but with batch effects
-#+ Quadratic model with batch effects
-#+ Model with relatednes and batch
 model_f <- brmsformula(AUC ~ 1 + temp + temp_sq + ( 1 + temp + temp_sq | gr(id, cov = A) ) + (1 | batch))
 m.quad_crn_batch <- brm(model_f,
                   data = Dat,
                   data2 = list(A = A),
-                  save_pars = save_pars(group = FALSE),
+                  save_pars = save_pars(all = TRUE),
                   chains = 4,
                   cores = 4,
                   seed = 6543,
@@ -212,25 +158,47 @@ m.quad_crn_batch <- brm(model_f,
                   warmup = 3000,
                   control = list(adapt_delta = 0.99))
 
+
+
+#' Model summaries  give smilar estimates. I get some warnings.
+#+ Model summaries
+summary(m.quad_crn)
 summary(m.quad_crn_batch)
-plot(m.quad_crn_batch)
 
 #' In this case the warnings about treedepth probably have to do
 #' with the fact that the relatedness matrix makes no sense with the observations
 #' in real data we need to pay attention to warnings. I'll ignore here.
 
-#' Compare models
-# LOO(m.quad_crn, m.quad_crn_batch)
+#' Traceplot look good as well
+#+ Traceplots
+plot(m.quad_crn)
+plot(m.quad_crn_batch)
 
-#' In real data we are likely to have batch effects so I will focus on the model
-#' with batch term
+#' ## Compare models
+#' Since we have two models, it is always a good idea to compare them. Can
+#' be done with an arbitrary number of models. Here I get a significant warning
+#' that requires setting moment_match and reloo. I won't do it since this
+#' is false data, but in real data we need to take the warnings seriously.
+#+ Compare models
+LOO(m.quad_crn, m.quad_crn_batch)
+# LOO(m.quad_crn, m.quad_crn_batch, moment_match = TRUE, reloo = TRUE)
 
+#' We observe that the model with batch and polynomial 2 has a hiher elpd and
+#' that the #' difference is more than 3 times the standard devieation of the
+#' differences, thus indicating that the batch model is significantly better. 
+#' Expected since data was simulated with batch effect. We expect a similar behavior
+#' in the real data.
+#' 
+#' I will focus in the model with batch effects
+#+ Select model
+# main_model <- m.quad_crn
+main_model <- m.quad_crn_batch
 
-#' # Plotting the reaction norm
+#' ## Plot overall reaction norm
 #' First we calculate the 95% posterior intervals
 #+ Plot overall RN
 Preds <- Dat %>%
-  mutate(preds = predict(m.quad_crn_batch, re_formula = NA) %>%
+  mutate(preds = predict(main_model, re_formula = NA) %>%
            as_tibble()) %>%
   tidyr::unpack(preds) %>%
   select(temp,
@@ -253,41 +221,27 @@ p1 <- Dat %>%
   geom_line(data = Preds,
             mapping = aes(x = temp, y = preds),
             linewidth = 1) + 
-  
   theme_classic()
 p1
 
-#' Decompose the variance using the Reacnorm package
+#' ## Decompose the variance using the Reacnorm package
 #+ Env values
 seq_env <- c(-1, 0,1)
-# seq_env <- seq(from = -1, to = 1, by = 0.1)
 env_X <- cbind(1, seq_env, seq_env ^ 2) # Design matrix for the quadratic model
 
-#' We extract the different models parameters. IMPORTANT: We need to change
-#' the names of the parameters to "a" (for intercept), "b" (for the main env
-#' variable), and "c" (for quadratic term of the environment). The order will
-#' match the order of terms in the formula of the model fit
-
-#' Firs the fixed effect parameters
-#+ Extract central estimates
-theta <- fixef(m.quad_crn_batch, robust = TRUE)[, "Estimate"] # Median estimates
-names(theta) <- c("a", "b", "c")
-theta               
-
-#' We get the estimate uncertainties as well.
-theta_vcov <- vcov(m.quad_crn_batch)
+#+ Fixed effect estimates Extract central estimates
+theta <- fixef(main_model, robust = TRUE)[, "Estimate"] # Median estimates
+names(theta) <- c("a", "b", "c") #' Only for polynomial degree 2
+theta_vcov <- vcov(main_model)
 rownames(theta_vcov) <- colnames(theta_vcov) <- names(theta)
-theta_vcov
 
-#' The matrix of relatedness (G-matrix) of the parameters
-G_mat <-  VarCorr(m.quad_crn_batch, robust = TRUE)[["id"]][["cov"]][ , "Estimate", ]
-rownames(G_mat) <- colnames(theta_vcov) <- names(theta)
-G_mat
+#+ G-matrix
+G_mat <-  VarCorr(main_model, robust = TRUE)[["id"]][["cov"]][ , "Estimate", ]
+rownames(G_mat) <- colnames(G_mat) <- names(theta) # For polynomial random effects
 
-#' The residual and batch SD's which we square (for variance) and add (for total variance)
-vr_ext <- VarCorr(m.quad_crn_batch, robust = TRUE)[["residual__"]][["sd"]][ , "Estimate" ] ^2 +
-  VarCorr(m.quad_crn_batch, robust = TRUE)[["batch"]][["sd"]][,"Estimate"] ^ 2
-vr_ext
+#+ Residual and batch SD's
+vr_ext <- VarCorr(main_model, robust = TRUE)[["residual__"]][["sd"]][ , "Estimate" ] ^ 2 +
+  VarCorr(main_model, robust = TRUE)[["batch"]][["sd"]][,"Estimate"] ^ 2
 
 #' Decompose the variance. The `wt_env` parameter is designed for natural
 #' env distributions. Here, since it is an experiment, and we don't know
@@ -297,22 +251,44 @@ vplas <- rn_pi_decomp(theta = theta,
                       V_theta = G_mat,
                       env = seq_env,
                       shape = expression(a + b * x + c * x^2),
+                      # shape = expression(a), # for polynomial 0
                       wt_env = rep(1, times = length(seq_env)))
 vplas
 
+# m.quad_crn pi
+# V_Plas     Pi_Sl     Pi_Cv
+# 1 0.02047858 0.2078569 0.7894149
+
+# m.quad_crn_batch pi
+# V_Plas     Pi_Sl     Pi_Cv
+# 1 0.01522686 0.3046904 0.6946678
+
+# m.p0_crn_batch
+# V_Plas Pi_Sl Pi_Cv
+# 1      0   NaN   NaN
+
 #' Here we see that there is little overall variation due to the environment (plasticity),
-#' around 1.5% (V_plas), this makes sense as the variation between temps, is much smaller
-#' than the variation between ids, in real data it could be quite different.
-#' Then, Pi_Sl is the proportion of V_Plas is explained, and Pi_Cv is the
+#' around 1.5% (V_plas), this makes sense looking at the plot. Then, Pi_Sl
+#' is the proportion of V_Plas is explained, and Pi_Cv is the
 #' proportion of V_Plas explained by the curvature. Here There is no common slope
 #' so that is why almost 70% of V_Plas is explained by the curvature.
 #' 
 #' Thecnically we could also use the  Phi decomposition to reach a similar
 #' conclusion. ¿Or only if wt_env is normal?
-# rn_phi_decomp(theta = theta,
-#               X = env_X,
-#               S = theta_vcov,
-#               wt_env = rep(1, times = length(seq_env)))
+rn_phi_decomp(theta = theta,
+              X = env_X,
+              S = theta_vcov,
+              wt_env = rep(1, times = length(seq_env)))
+
+# m.quad_crn
+# V_Plas     Phi_b     Phi_c Phi_b_c
+# 1 -0.5871767 0.7613559 0.2386441       0
+# 
+# m.quad_crn_batch
+# V_Plas     Phi_b     Phi_c Phi_b_c
+# 1 -0.6560756 0.7010698 0.2989302       0
+
+
 
 #'  # Relatedness decomposition
 #+ Relatedness decomposition
@@ -321,6 +297,20 @@ vrel <- rn_gen_decomp(theta = theta,
                       X = env_X,
                       wt_env = rep(1, times = length(seq_env)))
 vrel
+
+# m.quad_crn 
+# V_Add       V_A     V_AxE   Gamma_a   Gamma_b   Gamma_c Gamma_a_b  Gamma_a_c Gamma_b_c Iota_a
+# 1 1.290644 0.8594782 0.4311653 0.5370563 0.2398479 0.2826664         0 -0.0595706         0      0
+# Iota_b   Iota_c Iota_a_b Iota_a_c Iota_b_c
+# 1 0.717957 0.282043        0        0        0
+
+# m.quad_crn_batch
+# V_Add      V_A     V_AxE   Gamma_a   Gamma_b   Gamma_c Gamma_a_b  Gamma_a_c Gamma_b_c Iota_a
+# 1 1.628748 1.112221 0.5165265 0.6347726 0.2013925 0.3472158         0 -0.1833808         0      0
+# Iota_b   Iota_c Iota_a_b Iota_a_c Iota_b_c
+# 1 0.635045 0.364955        0        0        0
+
+m.p0_crn_batch
 
 #' Here V_Add is the the variance due to differences between ids (here strains).
 #' Which can be decomposed as V_A, the variance due to difference between mean
