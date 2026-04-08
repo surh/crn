@@ -1,10 +1,7 @@
-setwd("/home/sur/lab/exp/2026/today/")
 #+ Load dependencies
 library(tidyverse)
-# library(patchwork)
 library(brms)
 library(Reacnorm)
-
 date()
 
 #' # Simulate some simple data
@@ -62,11 +59,7 @@ Dat <- bind_rows(
   mutate(AUC = AUC + rnorm(n = length(id), mean = 0, sd = var_rep)) %>%
   mutate(AUC = AUC + b_batch[batch])
 
-#' Contigency table of samples
-#+ View data
-ftable(id + batch ~ temp, data = Dat)
-
-#' Plot of the resulting *reaction norms*.
+#' Plot of the resulting reaction norms
 #+ Plot data
 p1 <- Dat %>%
   ggplot(aes(x = temp, y = AUC,
@@ -127,25 +120,12 @@ Dat <- Dat %>%
 
 #' ## Run models
 #' 
-#' We first define the model formula and then run the model fit. We have two
-#' versions, one with batch effects and one without batch effects (in reality
-#' we always want to incorporate batch effects).
-#' 
-#' **IMPORTANT** We need the slope terms (temp & temp_sq) to be identical in
-#' the fixed and random effects
-#+ Fit quadratic models
-model_f <- brmsformula(AUC ~ 1 + temp + temp_sq + ( 1 + temp + temp_sq | gr(id, cov = A) ))
-m.quad_crn <- brm(model_f,
-                  data = Dat,
-                  data2 = list(A = A),
-                  save_pars = save_pars(all = TRUE),
-                  chains = 4,
-                  cores = 4,
-                  seed = 6543,
-                  iter = 5000,
-                  warmup = 3000,
-                  control = list(adapt_delta = 0.99))
-
+#' Just one model is tried here, a quadratic model (temp + temp^2), with
+#' a random intercept for batch effects. There is a bunch of warnings here
+#' and in the subsequent analysis. I ignore them because the data is simulated
+#' and so I don't expect this to be the right model, but with real data we
+#' have to take the warnings seriously
+#+ Fit model
 model_f <- brmsformula(AUC ~ 1 + temp + temp_sq + ( 1 + temp + temp_sq | gr(id, cov = A) ) + (1 | batch))
 m.quad_crn_batch <- brm(model_f,
                   data = Dat,
@@ -158,45 +138,21 @@ m.quad_crn_batch <- brm(model_f,
                   warmup = 3000,
                   control = list(adapt_delta = 0.99))
 
-
-
-#' Model summaries  give smilar estimates. I get some warnings.
 #+ Model summaries
 summary(m.quad_crn)
-summary(m.quad_crn_batch)
 
-#' In this case the warnings about treedepth probably have to do
-#' with the fact that the relatedness matrix makes no sense with the observations
-#' in real data we need to pay attention to warnings. I'll ignore here.
-
-#' Traceplot look good as well
 #+ Traceplots
 plot(m.quad_crn)
 plot(m.quad_crn_batch)
 
-#' ## Compare models
-#' Since we have two models, it is always a good idea to compare them. Can
-#' be done with an arbitrary number of models. Here I get a significant warning
-#' that requires setting moment_match and reloo. I won't do it since this
-#' is false data, but in real data we need to take the warnings seriously.
-#+ Compare models
-LOO(m.quad_crn, m.quad_crn_batch)
-# LOO(m.quad_crn, m.quad_crn_batch, moment_match = TRUE, reloo = TRUE)
-
-#' We observe that the model with batch and polynomial 2 has a hiher elpd and
-#' that the #' difference is more than 3 times the standard devieation of the
-#' differences, thus indicating that the batch model is significantly better. 
-#' Expected since data was simulated with batch effect. We expect a similar behavior
-#' in the real data.
-#' 
-#' I will focus in the model with batch effects
 #+ Select model
-# main_model <- m.quad_crn
+# Convenient in case there is more than one model
 main_model <- m.quad_crn_batch
 
-#' ## Plot overall reaction norm
-#' First we calculate the 95% posterior intervals
-#+ Plot overall RN
+#' ## Plot average reaction norm
+#' First we calculate the 95% posterior intervals and then we add them to
+#' our base plot
+#+ Plot average RN
 Preds <- Dat %>%
   mutate(preds = predict(main_model, re_formula = NA) %>%
            as_tibble()) %>%
@@ -207,9 +163,7 @@ Preds <- Dat %>%
          preds_up = Q97.5) %>%
   summarise(across(starts_with("preds"), mean),
             .by = temp)
-Preds
 
-#' Then we add to our base plot
 p1 <- Dat %>%
   ggplot(aes(x = temp, y = AUC)) +
   geom_line(aes(col = id,
@@ -225,6 +179,8 @@ p1 <- Dat %>%
 p1
 
 #' ## Decompose the variance using the Reacnorm package
+#' We need to extract some values from the model fit
+#+ Extract model params
 #+ Env values
 seq_env <- c(-1, 0,1)
 env_X <- cbind(1, seq_env, seq_env ^ 2) # Design matrix for the quadratic model
