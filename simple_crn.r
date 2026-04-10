@@ -186,6 +186,7 @@ p1
 # Constructed values
 seq_env <- c(-1, 0,1)
 env_X <- cbind(1, seq_env, seq_env ^ 2) # Design matrix for the quadratic model
+theta_vcov <- vcov(main_model) # Uncertainty in fixed params
 
 # Fixed effect posterior
 theta_post <- fixef(main_model, summary = FALSE)
@@ -209,12 +210,103 @@ head(var_ext_post)
 #' Now we combine everything into one big posterior object. This requires
 #' the `posterior` package. It simplifies keeping chains and iterations
 #' for plotting with `bayesplot`.
+#+ Overall posterior
+Post <- as_draws_df(theta_post)
+Post[["G"]] <- G_mat_post
+Post[["V_R"]] <- var_ext_post
+Post <- posterior::thin_draws(Post, thin = nrow(theta_post) / 250) # For debugging
+post_info <- select(Post, starts_with(".")) # convenience for new objects
+Post
 
+#' We decompose the mean reaction norm (Vplas). We could use the pi-decomposition
+#' but the phi-decomposition is more general, and incorporates uncertainty of estimates
+#+ RN decomposition on posterior
+Vplas_post <- Post %>%
+  pmap(function(a, b, c, G, V_R, .chain, .iteration, .draw, env_X, theta_vcov){
+    rn_phi_decomp(theta = c(a = a, b = b, c = c),
+                  X = env_X,
+                  S = theta_vcov,
+                  wt_env = rep(1, times = nrow(env_X)))
+    
+    # Pi decomposition is much slower, but seems to work better
+    # in simulated data
+    # rn_pi_decomp(theta = c(a = a, b = b, c = c),
+    #              V_theta = G,
+    #              env = seq_env,
+    #              shape = expression(a + b * x + c * x^2),
+    #              wt_env = rep(1, times = length(seq_env)))
+  }, theta_vcov = theta_vcov, env_X = env_X, .progress = TRUE) %>%
+  bind_rows() %>%
+  cbind(post_info) %>% # Add chain and draw info
+  as_draws_df() # Convert to posterior
+Vplas_post
 
+#' We repeat the iteration but now we do the relatedness ("gen") decomposition
+#' to decompose the variation in plasticity between ids
+#+ Variation in RN decomposition
+Vrel_post <- Post %>%
+  pmap(function(a, b, c, G, V_R, .chain, .iteration, .draw, env_X){
+    rn_gen_decomp(theta = c(a = a, b = b, c = c),
+                  G_theta = G,
+                  X = env_X,
+                  wt_env = rep(1, times = nrow(env_X)))
+  }, env_X = env_X, .progress = TRUE) %>%
+  bind_rows() %>%
+  cbind(post_info) %>% # Add chain and draw info
+  as_draws_df() # Convert to posterior
+Vrel_post
 
+#' Now we look at the results, for `Vplas_post` we are mostly interested
+#' in V_Plas, Phi_b and Phi_c, and we expect Phi_b_c to be very small. We can
+#' check that with posterior::sumarise and plot only the desired variables.
+#' Because V_Plas is by definition in a different scale, we plot it separatedly.
+#+ Check Vplas
+posterior::summarise_draws(Vplas_post)
+bayesplot::mcmc_trace(Vplas_post,
+                      pars = c("V_Plas", "Phi_b", "Phi_c"))
+bayesplot::mcmc_areas(Vplas_post,
+                      pars = c("V_Plas", "Phi_b", "Phi_c"),
+                      prob = 0.8,
+                      prob_outer = 0.9,
+                      point_est = "median",
+                      area_method = "equal area")
+#' This fit is problematic because it gives us a negative VPlas (pi-decomp doesn't),
+#' but the imterpretation of Phi_b and Phi_c is that variation in the average
+#' reaction norm is greater due to the slope (Phi_b) than to the curvature (Phi_c).
+#' That said, the model has problems here because the average reaction norm is almost
+#' a straight horizontal line
 
+#' Then we check the variation between ids. There are potentially many
+#' parameters here. So here we select the variables that have an absolute
+#' median posterior value above 1e-3 to docus on that. Also because V_Add,
+#' V_A and V_AxE can often be in a different range than the rest of the parameters
+#' we plot them by themselves
+#+ Check Vrel
+posterior::summarise_draws(Vrel_post)
+vars_to_plot <- Vrel_post %>%
+  select(where(function(column){abs(median(column)) > 1e-3})) %>%
+  select(!starts_with(".")) %>% colnames()
 
-
+bayesplot::mcmc_trace(Vrel_post,
+                      pars = vars_to_plot)
+bayesplot::mcmc_areas(Vrel_post,
+                      pars = c("V_Add", "V_A", "V_AxE"),
+                      prob = 0.8,
+                      prob_outer = 0.9,
+                      point_est = "median",
+                      area_method = "equal area")
+bayesplot::mcmc_areas(Vrel_post,
+                      pars = setdiff(vars_to_plot, c("V_Add", "V_A", "V_AxE")),
+                      prob = 0.8,
+                      prob_outer = 0.9,
+                      point_est = "median",
+                      area_method = "equal area")
+#' Basically we see that the there is a significant amount of variation
+#' explained by differences between strains (V_Add), and that more of that
+#' variation can be explained by difference between the average phenotypes of
+#' each strain (V_A), and a smaller fraction because of differences in the change
+#' of the phenotypes (response) with respect to the environment between strains
+#' (V_AxE). Then each of those can be further decomposed (gammas and iotas).
 
 
 
@@ -288,7 +380,7 @@ vrel <- rn_gen_decomp(theta = theta,
                       G_theta = G_mat,
                       X = env_X,
                       wt_env = rep(1, times = length(seq_env)))
-vrel
+
 
 # m.quad_crn 
 # V_Add       V_A     V_AxE   Gamma_a   Gamma_b   Gamma_c Gamma_a_b  Gamma_a_c Gamma_b_c Iota_a
