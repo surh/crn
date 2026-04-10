@@ -147,6 +147,7 @@ plot(m.quad_crn_batch)
 #+ Select model
 # Convenient in case there is more than one model
 main_model <- m.quad_crn_batch
+save(main_model, file = "main_model.rdat") # To avoid refitting
 
 #' ## Plot average reaction norm
 #' First we calculate the 95% posterior intervals and then we add them to
@@ -214,7 +215,7 @@ head(var_ext_post)
 Post <- as_draws_df(theta_post)
 Post[["G"]] <- G_mat_post
 Post[["V_R"]] <- var_ext_post
-Post <- posterior::thin_draws(Post, thin = nrow(theta_post) / 250) # For debugging
+# Post <- posterior::thin_draws(Post, thin = nrow(theta_post) / 250) # For debugging
 post_info <- select(Post, starts_with(".")) # convenience for new objects
 Post
 
@@ -270,6 +271,7 @@ bayesplot::mcmc_areas(Vplas_post,
                       prob_outer = 0.9,
                       point_est = "median",
                       area_method = "equal area")
+
 #' This fit is problematic because it gives us a negative VPlas (pi-decomp doesn't),
 #' but the imterpretation of Phi_b and Phi_c is that variation in the average
 #' reaction norm is greater due to the slope (Phi_b) than to the curvature (Phi_c).
@@ -308,217 +310,33 @@ bayesplot::mcmc_areas(Vrel_post,
 #' of the phenotypes (response) with respect to the environment between strains
 #' (V_AxE). Then each of those can be further decomposed (gammas and iotas).
 
-
-
-
-
-
-# Fixed effect estimates Extract central estimates
-theta <- fixef(main_model, robust = TRUE)[, "Estimate"] # Median estimates
-names(theta) <- c("a", "b", "c") #' Only for polynomial degree 2
-theta_vcov <- vcov(main_model)
-rownames(theta_vcov) <- colnames(theta_vcov) <- names(theta)
-
-#+ G-matrix
-G_mat <-  VarCorr(main_model, robust = TRUE)[["id"]][["cov"]][ , "Estimate", ]
-rownames(G_mat) <- colnames(G_mat) <- names(theta) # For polynomial random effects
-
-#+ Residual and batch SD's
-vr_ext <- VarCorr(main_model, robust = TRUE)[["residual__"]][["sd"]][ , "Estimate" ] ^ 2 +
-  VarCorr(main_model, robust = TRUE)[["batch"]][["sd"]][,"Estimate"] ^ 2
-
-#' Decompose the variance. The `wt_env` parameter is designed for natural
-#' env distributions. Here, since it is an experiment, and we don't know
-#' the natural distributions, we give equal weights to all envs
-#+ Decompose variance
-vplas <- rn_pi_decomp(theta = theta,
-                      V_theta = G_mat,
-                      env = seq_env,
-                      shape = expression(a + b * x + c * x^2),
-                      # shape = expression(a), # for polynomial 0
-                      wt_env = rep(1, times = length(seq_env)))
-vplas
-
-# m.quad_crn pi
-# V_Plas     Pi_Sl     Pi_Cv
-# 1 0.02047858 0.2078569 0.7894149
-
-# m.quad_crn_batch pi
-# V_Plas     Pi_Sl     Pi_Cv
-# 1 0.01522686 0.3046904 0.6946678
-
-# m.p0_crn_batch
-# V_Plas Pi_Sl Pi_Cv
-# 1      0   NaN   NaN
-
-#' Here we see that there is little overall variation due to the environment (plasticity),
-#' around 1.5% (V_plas), this makes sense looking at the plot. Then, Pi_Sl
-#' is the proportion of V_Plas is explained, and Pi_Cv is the
-#' proportion of V_Plas explained by the curvature. Here There is no common slope
-#' so that is why almost 70% of V_Plas is explained by the curvature.
-#' 
-#' Thecnically we could also use the  Phi decomposition to reach a similar
-#' conclusion. ¿Or only if wt_env is normal?
-rn_phi_decomp(theta = theta,
-              X = env_X,
-              S = theta_vcov,
-              wt_env = rep(1, times = length(seq_env)))
-
-# m.quad_crn
-# V_Plas     Phi_b     Phi_c Phi_b_c
-# 1 -0.5871767 0.7613559 0.2386441       0
-# 
-# m.quad_crn_batch
-# V_Plas     Phi_b     Phi_c Phi_b_c
-# 1 -0.6560756 0.7010698 0.2989302       0
-
-
-
-#'  # Relatedness decomposition
-#+ Relatedness decomposition
-vrel <- rn_gen_decomp(theta = theta,
-                      G_theta = G_mat,
-                      X = env_X,
-                      wt_env = rep(1, times = length(seq_env)))
-
-
-# m.quad_crn 
-# V_Add       V_A     V_AxE   Gamma_a   Gamma_b   Gamma_c Gamma_a_b  Gamma_a_c Gamma_b_c Iota_a
-# 1 1.290644 0.8594782 0.4311653 0.5370563 0.2398479 0.2826664         0 -0.0595706         0      0
-# Iota_b   Iota_c Iota_a_b Iota_a_c Iota_b_c
-# 1 0.717957 0.282043        0        0        0
-
-# m.quad_crn_batch
-# V_Add      V_A     V_AxE   Gamma_a   Gamma_b   Gamma_c Gamma_a_b  Gamma_a_c Gamma_b_c Iota_a
-# 1 1.628748 1.112221 0.5165265 0.6347726 0.2013925 0.3472158         0 -0.1833808         0      0
-# Iota_b   Iota_c Iota_a_b Iota_a_c Iota_b_c
-# 1 0.635045 0.364955        0        0        0
-
-m.p0_crn_batch
-
-#' Here V_Add is the the variance due to differences between ids (here strains).
-#' Which can be decomposed as V_A, the variance due to difference between mean
-#' phenotypic values of each id (also called environment-blind), and V_AxE
-#' which is the variance around those means (the difference in the plastic response
-#' to environment between ids). Can be expressed as a percentace, and here
-#' we would see that about a third (~32%) of the variance between id's is due
-#' to differences in their response to the environment, and the remaining, is
-#' do to overall differences in their mean phenotypic values.
-#' 
-#' The gamma and iota values further decompose V_A & V_AxE, respectively, 
-#' into their slope (Gamma_b, Iota_b) and curvature (Gamma_c, Iota_c) components.
-#' and curvature elements. Though negative values have to be treated with care.
-
-#' We can normalize everything as a function of the total phenotypic variance
-#' (including batch and residual)
+#' Normally we want to express the main variance components as proportion of
+#' the total variance, so wee need to add the different types of variance and
+#' normalize everything. We use the posterior package. Some of the standardized
+#' values have standard names in popgen theory (e.g. V_A / V_Tot = H^2 = heritability)
 #+ Standardize variance
-var_tot <- vplas[["V_Plas"]] + vrel[["V_Add"]] + vr_ext
-var_pheno <-
-  c(P2 = vplas[["V_Plas"]] / var_tot,
-    h2_RN = vrel[["V_Add"]] / var_tot,
-    h2 = vrel[["V_A"]] / var_tot,
-    h2_I = vrel[["V_AxE"]] / var_tot,
-    T2 = (vplas[["V_Plas"]] + vrel[["V_Add"]]) / var_tot)
-var_pheno
+Var_std_post <- posterior::bind_draws(Post, Vplas_post, Vrel_post) %>%
+  posterior::subset_draws(c("V_Plas", "V_Add", "V_A", "V_AxE", "V_R")) %>%
+  posterior::mutate_variables(V_Tot = V_Plas + V_Add + V_R) %>%
+  transmute(P2 = V_Plas / V_Tot,
+            H2_RN = V_Add / V_Tot,
+            H2 = V_A / V_Tot,
+            H2_I = V_AxE / V_Tot,
+            T2 = (V_Plas + V_Add) / V_Tot) %>%
+  cbind(post_info) %>% # Add draws info
+  as_draws_df() # Cionvert to posterior
 
-#' Getting the posterior
+#' We summarise and plot the results.
+#+ Inspect standardized values
+posterior::summarise_draws(Var_std_post)
+bayesplot::mcmc_trace(Var_std_post)
+bayesplot::mcmc_areas(Var_std_post,
+                      prob = 0.8,
+                      prob_outer = 0.9,
+                      point_est = "median",
+                      area_method = "equal area")
 
-#' First the fixed effect parameters
-#+ Get posterior distributions
-theta_post <- fixef(m.quad_crn_batch, summary = FALSE)
-colnames(theta_post) <- c("a", "b", "c")
-head(theta_post)
-
-#' The residual and batch SD's (squared and added)
-vr_ext_post <- VarCorr(m.quad_crn_batch, summary = FALSE)[["residual__"]][["sd"]][ , 1 ] ^ 2 +
-  VarCorr(m.quad_crn_batch, summary = FALSE)[["batch"]][["sd"]][ , 1 ] ^ 2
-head(vr_ext_post)
-
-#' G_mat needs to be transformed into a list
-G_mat_post <- VarCorr(m.quad_crn_batch, summary = FALSE)[["id"]][["cov"]] %>%
-  apply(1,function(mat){mat}, simplify = FALSE) %>% # Converts 3D array into list
-  map(function(mat){
-    rownames(mat) <- colnames(mat) <- c("a", "b", "c")
-    return(mat)
-    })
-head(G_mat_post)
-
-#' For convenience, combine everything into a posterior distribution object
-#' using the posterior package
-Post <- as_draws_df(theta_post)
-Post[["G"]] <- G_mat_post
-Post[["V_R"]] <- vr_ext_post
-Post <- posterior::thin_draws(Post, thin = nrow(theta_post) / 1000)
-post_info <- select(Post, starts_with(".")) # convenience for new objects
-Post
-
-
-#' VPlas decomposition
-#+ RN decomposition on posterior
-vplas_post <- Post %>%
-  pmap(function(a, b, c, G, V_R, .chain, .iteration, .draw){
-    rn_phi_decomp(theta = c(a = a, b = b, c = c),
-                  X = env_X,
-                  S = theta_vcov,
-                  wt_env = rep(1, times = length(seq_env)))
-
-    # Pi decomposition is much slower, but seems to work better
-    # in simulated data
-    # rn_pi_decomp(theta = c(a = a, b = b, c = c),
-    #              V_theta = G,
-    #              env = seq_env,
-    #              shape = expression(a + b * x + c * x^2),
-    #              wt_env = rep(1, times = length(seq_env)))
-    }, .progress = TRUE) %>%
-  bind_rows() %>%
-  select(where(function(column){abs(mean(column)) > 1e-5})) %>%
-  cbind(post_info) %>% # Add chain and draw info
-  as_draws_df()
-vplas_post
-
-#+ Plot posterior distribution of decomp
-posterior::summarise_draws(vplas_post)
-bayesplot::mcmc_trace(vplas_post)
-
-bayesplot::mcmc_areas(vplas_post,
-                      pars = "V_Plas",
-                      prob = 0.95,
-                      area_method = "scaled height") /
-bayesplot::mcmc_areas(vplas_post,
-             pars = c("Phi_b", "Phi_c"),
-             # pars = c("Pi_Sl", "Pi_Cv"),
-             prob = 0.95,
-             area_method = "scaled height") +
-  patchwork::plot_layout(heights = c(1, 2))
-
-
-
-#' Relatednes decomposition
-#+ Posterior distribution of relatedness
-vrel_post <- Post %>%
-  pmap(function(a, b, c, G, V_R, .chain, .iteration, .draw){
-    rn_gen_decomp(theta = c(a = a, b = b, c = c),
-                  G_theta = G,
-                  X = env_X,
-                  wt_env = rep(1, times = length(seq_env)))
-  }, .progress = TRUE) %>%
-  bind_rows() %>%
-  select(where(function(column){abs(mean(column)) > 1e-5})) %>%
-  cbind(post_info) %>%
-  as_draws_df()
-vrel_post
-
-posterior::summarise_draws(vrel_post)
-
-#+ Plot of posterior distribution of relatedness
-bayesplot::mcmc_trace(vrel_post)
-bayesplot::mcmc_areas(vrel_post,
-                      pars = c("V_Add", "V_A", "V_AxE"),
-                      prob = 0.95,
-                      area_method = "scaled height")
-bayesplot::mcmc_areas(vrel_post,
-                      regex_pars = "^[^V]",
-                      prob = 0.95,
-                      area_method = "scaled height") 
-
+#' Here we get very bad values, with numbers above 1 and below 0 (they are
+#' supposed to be proportions), thisi is because V_Plas is negative. In real
+#' data it shouldn't be negative.
 date()
